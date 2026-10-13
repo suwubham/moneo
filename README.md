@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Moneo
 
-## Getting Started
+Personal finance with an assistant that knows your numbers. Accounts, transactions and budgets, plus a chat that reads your own data to answer questions.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+apps/site/     landing page (static)               → moneo.com          port 3030
+apps/app/      the product (Clerk, Postgres, AI)   → app.moneo.com      port 3031
+packages/ui/   shared tokens, base CSS, theme toggle
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Stack: Next.js 16 (App Router, Cache Components), React 19, Tailwind v4, TypeScript strict, Clerk, Postgres + Drizzle, LangGraph.js with Gemini on Vertex AI.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Run it locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+You need Node 24, Docker, and npm.
 
-## Learn More
+```bash
+npm install
+cp apps/app/.env.example apps/app/.env.local
+(cd apps/app && npx clerk@latest init)   # once: writes Clerk dev keys to .env.local, no account needed
+./dev.sh                                  # Postgres in Docker + both apps
+```
 
-To learn more about Next.js, take a look at the following resources:
+Set `GOOGLE_CLOUD_PROJECT` (and `APP_GOOGLE_CREDENTIALS_JSON`, or run `gcloud auth application-default login`) in `apps/app/.env.local` to turn the assistant on. Without it, everything else works.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`./dev.sh` stops both apps and the database on Ctrl+C. The data stays in a Docker volume.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database and migrations
 
-## Deploy on Vercel
+Tables live next to their module in `apps/app/lib/modules/*/schema.ts`. SQL migrations live in `apps/app/drizzle/`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| When | What runs |
+|------|-----------|
+| `npm run dev` / `./dev.sh` | pending migrations are applied before the dev server starts |
+| you change a schema file | `npm run db:generate` writes the SQL and applies it locally |
+| a Vercel preview builds | migrates its own Neon branch, but only if `APP_PRODUCTION_DB_HOST` is set and does not match |
+| a PR merges to `main` | `.github/workflows/migrate.yml` migrates production |
+| CI | migrates an empty database, then fails if the schema changed without a migration |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Migrations take a Postgres advisory lock, so two runners never migrate at once.
+
+Other commands: `npm run db:migrate`, `npm run db:studio`, `npm test` (unit tests plus database tests when `DATABASE_URL` is set), `npm run lint`, `npm run typecheck`.
+
+## Environment variables
+
+`apps/app/.env.example` lists them all. An empty value switches that feature off.
+
+| Variable | App | Purpose |
+|----------|-----|---------|
+| `APP_ENVIRONMENT` | app | `development`, `preview` or `production`. Rate limits only in production. |
+| `DATABASE_URL` | app | Postgres. Injected by the Vercel–Neon integration. `APP_DATABASE_URL` wins if both are set. |
+| `APP_PRODUCTION_DB_HOST` | app | Production Neon hostname. Previews refuse to migrate against it. |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | app | Clerk. |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | app | `/sign-in`, `/sign-up`. |
+| `GOOGLE_CLOUD_PROJECT` | app | Google Cloud project for Vertex AI. Empty turns off the assistant, quick add, month read and budget suggestions. |
+| `GOOGLE_CLOUD_LOCATION` | app | Vertex region. Default `global`. |
+| `APP_GOOGLE_CREDENTIALS_JSON` | app | Service account key JSON (needs the Vertex AI User role). Empty uses Application Default Credentials. |
+| `APP_AI_MODEL` | app | Gemini model id on Vertex. Default `gemini-3.6-flash` (steady ~1 s per call on Vertex `global`; 3.8 was 2–30 s when tested). |
+| `APP_AI_HOURLY_LIMIT` | app | Chat messages per user per hour in production. Default 60. |
+| `APP_SITE_URL` | both | Landing page URL. The app sends people here after sign out. |
+| `APP_WEB_URL` | both | App URL. The landing page links here to sign in and sign up. |
+
+## Where the AI is
+
+- **Assistant** (`/assistant`): a LangGraph agent ⇄ tools loop. The tools read accounts, categories, transactions, spending by category, monthly cash flow and budget status, all scoped to the signed-in user. Answers stream over `POST /api/chat` as NDJSON. Chats are stored in `conversations` and `messages`.
+- **Quick add** (Transactions): plain words like "coffee 4.50 yesterday on my visa" fill the form. You review it before it is saved.
+- **Month read** (Overview): a few sentences about the month, written from totals only.
+- **Budget suggestions** (Budgets): limits based on the last three months. Nothing is saved until you add one.
+
+The sandbox for maths and charts will be another node next to `tools` in `lib/modules/assistant/graph.ts`.
+
+## Deploying
+
+Use two Vercel projects from this repo:
+
+- `moneo-site`: root directory `apps/site`. Set `APP_SITE_URL` and `APP_WEB_URL`.
+- `moneo-app`: root directory `apps/app`. Add the Neon integration (a branch per preview), the Clerk keys, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `APP_GOOGLE_CREDENTIALS_JSON`, `APP_ENVIRONMENT`, `APP_PRODUCTION_DB_HOST`, and both URLs.
+
+Add the `DATABASE_URL_UNPOOLED` secret to the GitHub `production` environment for `migrate.yml`.
+
+Before launch, legal and compliance must review the privacy page and the landing copy about data handling.

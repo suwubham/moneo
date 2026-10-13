@@ -1,0 +1,29 @@
+name: migrate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/app/drizzle/**"
+  workflow_dispatch:
+
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply migrations to production
+        env:
+          # Direct (non-pooled) Neon URL: migrations hold a session advisory lock.
+          DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: npm run db:migrate

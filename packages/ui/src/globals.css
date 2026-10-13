@@ -1,0 +1,340 @@
+@import "tailwindcss";
+
+/* Tokens: dark ("night") is the default, light ("day") is warm paper. */
+:root {
+  --night: #001b29;
+  --night-2: #00263a;
+  --night-3: #003049;
+  --line: color-mix(in srgb, #669bbc 22%, transparent);
+  --ink: #fdf0d5;
+  --ink-soft: #b3bcc0;
+  --ash: #3f6178;
+  --accent: #ef4a55;
+  --steel: #669bbc;
+  --frost: #a8cbe0;
+  --amber: #e8c38a;
+  --on-accent: #00131d;
+  --crimson: #c1121f;
+
+  --grain-op: 0.05;
+  --scene: var(--accent);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --night: #fdf0d5;
+    --night-2: #f7e4bf;
+    --night-3: #f0d9ab;
+    --line: color-mix(in srgb, #003049 16%, transparent);
+    --ink: #003049;
+    --ink-soft: #3e5a6b;
+    --ash: #9ba9ad;
+    --accent: #c1121f;
+    --steel: #2b6388;
+    --frost: #003049;
+    --amber: #780000;
+    --on-accent: #fdf0d5;
+    --grain-op: 0.06;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --night: #fdf0d5;
+  --night-2: #f7e4bf;
+  --night-3: #f0d9ab;
+  --line: color-mix(in srgb, #003049 16%, transparent);
+  --ink: #003049;
+  --ink-soft: #3e5a6b;
+  --ash: #9ba9ad;
+  --accent: #c1121f;
+  --steel: #2b6388;
+  --frost: #003049;
+  --amber: #780000;
+  --on-accent: #fdf0d5;
+  --grain-op: 0.06;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* The site sets body[data-scene] per section on screen, the app per route. */
+body[data-scene="frost"] {
+  --scene: var(--frost);
+}
+body[data-scene="amber"] {
+  --scene: var(--amber);
+}
+body[data-scene="steel"] {
+  --scene: var(--steel);
+}
+
+@custom-variant light {
+  &:where([data-theme="light"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: light) {
+    &:where(:root:not([data-theme="dark"]) *) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant short (@media (orientation: landscape) and (max-height: 520px));
+
+@theme inline {
+  --color-night: var(--night);
+  --color-night-2: var(--night-2);
+  --color-night-3: var(--night-3);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ash: var(--ash);
+  --color-accent: var(--accent);
+  --color-steel: var(--steel);
+  --color-frost: var(--frost);
+  --color-amber: var(--amber);
+  --color-on-accent: var(--on-accent);
+  --color-crimson: var(--crimson);
+  --color-scene: var(--scene);
+
+  --font-grot: var(--font-bricolage), "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-fancy: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease-snap: cubic-bezier(0.7, 0, 0.2, 1);
+  --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@utility wrap {
+  max-width: 82rem;
+  margin-inline: auto;
+  /* Never under a notch or rounded corner on phones held sideways. */
+  padding-left: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(1rem, 4vw, 3rem), env(safe-area-inset-right, 0px));
+}
+@utility fancy {
+  font-family: var(--font-fancy);
+  font-style: italic;
+  font-weight: 300;
+  font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+}
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html {
+    scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 6rem);
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) var(--night);
+  }
+  body {
+    margin: 0;
+    background: var(--night);
+    color: var(--ink);
+    font-family: var(--font-grot);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+  /* Paper grain over everything. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    opacity: var(--grain-op);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  a {
+    color: inherit;
+    text-decoration-color: var(--scene);
+    text-underline-offset: 0.25em;
+    text-decoration-thickness: 1px;
+  }
+  :focus-visible {
+    outline: 2px solid var(--frost);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  button {
+    cursor: pointer;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--night);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border: 2px solid var(--night);
+    border-radius: 99px;
+  }
+}
+
+@layer components {
+  /* Only hidden when JS can reveal them. */
+  @media (scripting: enabled) {
+    .rv {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.8s var(--ease-soft), transform 0.8s var(--ease-soft);
+      transition-delay: calc(var(--d, 0) * 80ms);
+    }
+    .rv.in {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .box {
+    position: relative;
+    isolation: isolate;
+    transition: transform 0.4s var(--ease-soft);
+  }
+  .blob {
+    position: absolute;
+    z-index: -2;
+    aspect-ratio: 1;
+    pointer-events: none;
+    border-radius: 48% 52% 44% 56% / 58% 46% 54% 42%;
+    /* A slow turn of an uneven shape reads as breathing, and stays on the GPU. */
+    animation: spin 70s linear infinite;
+    will-change: transform;
+    transition: scale 0.8s var(--ease-soft);
+  }
+  .box:hover .blob {
+    scale: 1.08;
+  }
+  .blob-a {
+    background:
+      radial-gradient(70% 60% at 35% 35%, var(--steel), transparent 72%),
+      radial-gradient(60% 60% at 75% 80%, var(--frost), transparent 70%);
+  }
+  .blob-d {
+    background: conic-gradient(from 90deg, var(--amber), var(--steel), var(--frost), var(--accent), var(--amber));
+    filter: blur(2px);
+  }
+  .blob-e {
+    background: radial-gradient(70% 70% at 40% 40%, var(--accent), transparent 72%);
+  }
+
+  .skeleton {
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  .caret::after {
+    content: "";
+    display: inline-block;
+    width: 0.55em;
+    height: 1.05em;
+    margin-left: 0.15em;
+    vertical-align: -0.15em;
+    background: var(--accent);
+    animation: pulse 1s steps(2, jump-none) infinite;
+  }
+
+  /* Side drawer on a native <dialog>: slides in from the right, leaves faster. */
+  .drawer {
+    margin: 0 0 0 auto;
+    height: 100dvh;
+    max-height: none;
+    width: min(32rem, 100vw);
+    border: 0;
+    border-left: 1px solid var(--line);
+    padding: 0;
+    background: var(--night-2);
+    color: var(--ink);
+    translate: 100% 0;
+    transition: translate 0.2s var(--ease-snap), display 0.2s allow-discrete, overlay 0.2s allow-discrete;
+  }
+  .drawer[open] {
+    translate: 0 0;
+    transition-duration: 0.32s;
+    transition-timing-function: var(--ease-soft);
+  }
+  @starting-style {
+    .drawer[open] {
+      translate: 100% 0;
+    }
+  }
+  .drawer::backdrop {
+    background: color-mix(in srgb, var(--night) 70%, transparent);
+    opacity: 0;
+    transition: opacity 0.2s var(--ease-soft), display 0.2s allow-discrete, overlay 0.2s allow-discrete;
+  }
+  .drawer[open]::backdrop {
+    opacity: 1;
+  }
+  @starting-style {
+    .drawer[open]::backdrop {
+      opacity: 0;
+    }
+  }
+
+  .live::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .rv {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* No per-element fades while the theme flips. */
+.theme-swap,
+.theme-swap *,
+.theme-swap *::before,
+.theme-swap *::after {
+  transition: none !important;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.2s;
+  animation-timing-function: ease-out;
+}

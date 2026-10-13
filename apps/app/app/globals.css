@@ -1,0 +1,18 @@
+/* Clerk styles sit in their own layer after base, so Tailwind preflight cannot reset its buttons. */
+@layer theme, base, clerk, components, utilities;
+@import "@moneo/ui/globals.css";
+@source "../../../packages/ui/src";
+
+/* Resolved on :root, so Clerk's own --accent and friends inside its card cannot shadow ours. */
+:root {
+  --clerk-color-primary: var(--accent);
+  --clerk-color-primary-foreground: var(--on-accent);
+  --clerk-color-background: var(--night-2);
+  --clerk-color-foreground: var(--ink);
+  --clerk-color-muted-foreground: var(--ink-soft);
+  --clerk-color-input: var(--night);
+  --clerk-color-input-foreground: var(--ink);
+  --clerk-color-neutral: var(--ink);
+  --clerk-color-border: var(--ash);
+  --clerk-color-ring: var(--frost);
+}

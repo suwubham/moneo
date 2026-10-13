@@ -1,0 +1,14 @@
+{
+  "name": "@moneo/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./globals.css": "./src/globals.css",
+    "./theme": "./src/theme.tsx",
+    "./theme-toggle": "./src/theme-toggle.tsx"
+  },
+  "peerDependencies": {
+    "react": "*"
+  }
+}

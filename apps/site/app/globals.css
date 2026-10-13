@@ -1,0 +1,104 @@
+@import "@moneo/ui/globals.css";
+@source "../../../packages/ui/src";
+
+@layer components {
+  /* Headline letters rise from under a clipped row. */
+  .split-row {
+    display: block;
+    overflow: hidden;
+    padding-bottom: 0.08em;
+    margin-bottom: -0.08em;
+  }
+  .ch {
+    display: inline-block;
+    animation: rise 0.9s var(--ease-soft) both;
+    animation-delay: calc(var(--i, 0) * 28ms + 120ms);
+  }
+
+  .sticker {
+    rotate: var(--rz, -3deg);
+    animation: bob 6s ease-in-out infinite;
+    transition: rotate 0.5s var(--ease-soft);
+  }
+  .sticker:hover {
+    rotate: 0deg;
+  }
+
+  .eq rect {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: eq 1.6s ease-in-out infinite alternate;
+    animation-delay: calc(var(--i, 0) * -0.27s);
+  }
+
+  .fan circle {
+    transform-box: view-box;
+    transform-origin: 50% 100%;
+    transition: rotate 0.9s var(--ease-soft);
+  }
+  .box:hover .fan circle {
+    rotate: var(--r, 0deg);
+  }
+
+  .pages > * {
+    transition: translate 0.7s var(--ease-soft);
+  }
+  .box:hover .pages > :nth-child(1) {
+    translate: -10px -6px;
+  }
+  .box:hover .pages > :nth-child(3) {
+    translate: 10px 6px;
+  }
+
+  /* The ring stays drawn when there is no script to animate it in. */
+  @media (scripting: enabled) {
+    .ring-draw {
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      transition: stroke-dashoffset 1.6s var(--ease-snap) 0.3s;
+    }
+    .in .ring-draw {
+      stroke-dashoffset: var(--to, 28);
+    }
+  }
+
+  .progress {
+    transform-origin: 0 50%;
+    transform: scaleX(var(--p, 0));
+  }
+  @supports (animation-timeline: scroll()) {
+    .progress {
+      animation: grow linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+
+  /* A stroke outline shows the variable font's overlapping contours, so the resting state is a faint fill. */
+  .outline-text {
+    color: color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(105%);
+  }
+}
+@keyframes bob {
+  50% {
+    translate: 0 -8px;
+  }
+}
+@keyframes eq {
+  from {
+    transform: scaleY(0.35);
+  }
+}
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}

@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: moneo
+          POSTGRES_PASSWORD: moneo
+          POSTGRES_DB: moneo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U moneo -d moneo"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://moneo:moneo@localhost:5432/moneo
+      APP_ENVIRONMENT: test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Migrations apply to an empty database
+        run: npm run db:migrate
+      - name: Migrations match the schema
+        working-directory: apps/app
+        run: |
+          npx drizzle-kit check
+          npx drizzle-kit generate --name drift-check
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "Schema changed without a migration. Run: npm run db:generate"
+            git status --porcelain drizzle
+            exit 1
+          fi
+      - run: npm test
+      - run: npm run build
