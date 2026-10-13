@@ -71,10 +71,17 @@ The sandbox for maths and charts will be another node next to `tools` in `lib/mo
 
 ## Deploying
 
-Use two Vercel projects from this repo:
+Two Vercel projects deploy from `main` (account `suwubham`):
 
-- `moneo-site`: root directory `apps/site`. Set `APP_SITE_URL` and `APP_WEB_URL`.
-- `moneo-app`: root directory `apps/app`. Add the Neon integration (a branch per preview), the Clerk keys, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `APP_GOOGLE_CREDENTIALS_JSON`, `APP_ENVIRONMENT`, `APP_PRODUCTION_DB_HOST`, and both URLs.
+| Project | Root | Domain |
+|---------|------|--------|
+| `moneo-site` | `apps/site` | https://moneo.shubhamshakya.com.np |
+| `moneo-app` | `apps/app` | https://app.moneo.shubhamshakya.com.np |
+
+- `moneo-app` runs in Singapore (`sin1`, set in `apps/app/vercel.json`) next to its Neon database (`aws-ap-southeast-1`, added through the Vercel marketplace, a branch per preview).
+- Each `vercel.json` skips the build when nothing in that app or `packages/` changed.
+- DNS lives in Cloudflare: both names are CNAMEs to `cname.vercel-dns.com` with the proxy off, so Vercel issues the certificates.
+- `moneo-app` env: the Clerk keys, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `APP_GOOGLE_CREDENTIALS_JSON`, `APP_ENVIRONMENT`, `APP_PRODUCTION_DB_HOST`, `APP_AI_*`, and both URLs. `moneo-site` env: both URLs.
 
 Add the `DATABASE_URL_UNPOOLED` secret to the GitHub `production` environment for `migrate.yml`.
 
