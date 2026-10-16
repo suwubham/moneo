@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { ThemeToggle } from "@moneo/ui/theme-toggle";
+import { ClientOnly } from "./client-only";
 
 type Item = { href: string; label: string; short: string; scene: string; icon: React.ReactNode };
 
@@ -74,6 +75,14 @@ function active(path: string | null, href: string) {
   return href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
 }
 
+function Avatar() {
+  return (
+    <ClientOnly fallback={<span aria-hidden className="size-7 rounded-full bg-night-3" />}>
+      <UserButton />
+    </ClientOnly>
+  );
+}
+
 function Mark() {
   return (
     <Link
@@ -120,7 +129,7 @@ export function NavShell({ path }: { path: string | null }) {
         </ul>
         <ThemeToggle />
         <div className="grid size-10 shrink-0 place-items-center">
-          <UserButton />
+          <Avatar />
         </div>
       </nav>
 
@@ -138,7 +147,7 @@ export function NavShell({ path }: { path: string | null }) {
             </svg>
           </Link>
           <div className="grid size-10 place-items-center">
-            <UserButton />
+            <Avatar />
           </div>
         </div>
       </header>

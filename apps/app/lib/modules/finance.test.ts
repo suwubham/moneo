@@ -3,7 +3,7 @@ import { after, before, describe, test } from "node:test";
 import { monthOf } from "@/lib/core/dates";
 import type { AppError } from "@/lib/core/errors";
 import { createAccount, getAccounts } from "./accounts/service";
-import { getBudgetProgress, saveBudget, statusOf } from "./budgets/service";
+import { getBudgetProgress, saveBudget, statusOf, updateBudget } from "./budgets/service";
 import { getCategories } from "./categories/service";
 import { deleteAllData, getProfile } from "./profiles/service";
 import { getMonthlyFlow, getSpendingByCategory } from "./reports/service";
@@ -65,17 +65,58 @@ describe("finance modules against Postgres", { skip: !hasDb && "no DATABASE_URL"
       { month: "2026-10", moneyIn: 2000, moneyOut: 42.5 },
     ]);
 
-    await saveBudget(me, { categoryId: dining.id, amount: "50.00" });
-    await saveBudget(me, { categoryId: dining.id, amount: "40.00" });
+    await saveBudget(me, { kind: "category", categoryId: dining.id, amount: "50.00" });
+    await saveBudget(me, { kind: "category", categoryId: dining.id, amount: "40.00" });
     const [b] = await getBudgetProgress(me, oct);
     assert.equal(b.amount, "40.00");
     assert.equal(b.spent, "42.50");
     assert.equal(statusOf(b).status, "over");
   });
 
+  test("total and picked budgets count the right transactions", async () => {
+    const id = `${me}_kinds`;
+    await getProfile(id);
+    const acct = await createAccount(id, { name: "Card", kind: "credit", openingBalance: "0" });
+    const dining = (await getCategories(id)).find((c) => c.name === "Dining")!;
+    await saveBudget(id, { kind: "total", amount: "1000" });
+    await saveBudget(id, { kind: "category", categoryId: dining.id, amount: "100" });
+    const trip = await saveBudget(id, { kind: "picked", name: "Trip", amount: "500" });
+    await assert.rejects(saveBudget(id, { kind: "picked", name: "trip", amount: "1" }), (e: AppError) => e.code === "budget_exists");
+    const gifts = await saveBudget(id, { kind: "picked", name: "Gifts", amount: "50" });
+    await assert.rejects(updateBudget(id, gifts.id, { amount: "50", name: "TRIP" }), (e: AppError) => e.code === "budget_exists");
+
+    const base = { accountId: acct.id, note: null, direction: "out" as const, occurredOn: "2026-10-04" };
+    await createTransaction(id, { ...base, categoryId: dining.id, amount: "40.00", description: "Dinner", budgetId: trip.id });
+    await createTransaction(id, { ...base, categoryId: dining.id, amount: "10.00", description: "Snack" });
+    await createTransaction(id, { ...base, categoryId: null, amount: "300.00", description: "To savings", excludeFromBudgets: true });
+
+    const got = await getBudgetProgress(id, oct);
+    assert.deepEqual(
+      got.map((b) => [b.name, b.spent]),
+      [
+        ["All spending", "50.00"],
+        ["Gifts", "0.00"],
+        ["Trip", "40.00"],
+        ["Dining", "50.00"],
+      ],
+    );
+
+    // Only picked budgets can hold transactions, and only your own.
+    const total = got.find((b) => b.kind === "total")!;
+    await assert.rejects(
+      createTransaction(id, { ...base, categoryId: null, amount: "1.00", description: "x", budgetId: total.id }),
+      (e: AppError) => e.status === 404,
+    );
+    await assert.rejects(
+      createTransaction(other, { ...base, accountId: (await getAccounts(other))[0]?.id ?? acct.id, categoryId: null, amount: "1.00", description: "x", budgetId: trip.id }),
+      (e: AppError) => e.status === 404,
+    );
+    await deleteAllData(id);
+  });
+
   test("budgets refuse income categories", async () => {
     const salary = (await getCategories(me)).find((c) => c.name === "Salary")!;
-    await assert.rejects(saveBudget(me, { categoryId: salary.id, amount: "10" }), (e: AppError) => e.code === "not_expense_category");
+    await assert.rejects(saveBudget(me, { kind: "category", categoryId: salary.id, amount: "10" }), (e: AppError) => e.code === "not_expense_category");
   });
 
   test("nobody can write into someone else's account or read their rows", async () => {

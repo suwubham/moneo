@@ -3,6 +3,7 @@ import { type Month, monthLabel, shiftMonth } from "@/lib/core/dates";
 import { getBudgetProgress, statusOf } from "@/lib/modules/budgets/service";
 import { getMonthlyFlow, getSpendingByCategory } from "@/lib/modules/reports/service";
 import { callModel, chatModel } from "./model";
+import { visibleText } from "./text";
 
 // A short read of the month from aggregates only; individual transactions never leave for this one.
 export async function monthRead(userId: string, currency: string, month: Month, today: string): Promise<string> {
@@ -21,7 +22,7 @@ export async function monthRead(userId: string, currency: string, month: Month, 
     cashFlowLast3Months: flow,
     topSpendingThisMonth: now.map((r) => ({ category: r.name, spent: r.spent })),
     topSpendingLastMonth: before.map((r) => ({ category: r.name, spent: r.spent })),
-    budgets: budgets.map((b) => ({ category: b.categoryName, limit: b.amount, spent: b.spent, status: statusOf(b).status })),
+    budgets: budgets.map((b) => ({ budget: b.name, kind: b.kind, limit: b.amount, spent: b.spent, status: statusOf(b).status })),
   };
 
   const prompt = `Write a short read of this person's month in money, from these facts only.
@@ -34,5 +35,5 @@ If the month is not over yet, say "so far". Say amounts in ${currency}. Do not g
 If there is almost no data, say that in one friendly sentence and suggest adding a few transactions.`;
 
   const reply = await callModel("month_read", () => chatModel({ temperature: 0.4 }).invoke(prompt));
-  return typeof reply.content === "string" ? reply.content.trim() : reply.text.trim();
+  return visibleText(reply.content).trim();
 }

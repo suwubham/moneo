@@ -15,6 +15,9 @@ export const categories = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     kind: text("kind", { enum: categoryKinds }).notNull(),
+    // Keys from look.ts. Null means "guess from the name".
+    icon: text("icon"),
+    color: text("color"),
     ...timestamps(),
   },
   (t) => [

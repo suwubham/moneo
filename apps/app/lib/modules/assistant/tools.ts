@@ -120,13 +120,13 @@ export function financeTools(userId: string) {
       return JSON.stringify(
         rows.map((b) => {
           const { ratio, status } = statusOf(b);
-          return { category: b.categoryName, limit: b.amount, spent: b.spent, used: `${Math.round(ratio * 100)}%`, status };
+          return { budget: b.name, kind: b.kind, limit: b.amount, spent: b.spent, used: `${Math.round(ratio * 100)}%`, status };
         }),
       );
     },
     {
       name: "budget_status",
-      description: "Monthly budgets with how much has been spent against each one for a month (default: this month).",
+      description: "Monthly budgets with how much has been spent against each one for a month (default: this month). kind is category (one spending category), total (all spending) or picked (only transactions the person added to it).",
       schema: z.object({ month: monthKey.optional() }),
     },
   );

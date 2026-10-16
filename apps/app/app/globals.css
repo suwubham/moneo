@@ -16,3 +16,134 @@
   --clerk-color-border: var(--ash);
   --clerk-color-ring: var(--frost);
 }
+
+/* Loading boxes hand over to real content: the skeleton drops away, the content rises in. */
+::view-transition-old(.slide-down) {
+  animation: 150ms var(--ease-soft) both vt-fade reverse, 150ms var(--ease-soft) both vt-slide reverse;
+}
+::view-transition-new(.slide-up) {
+  animation: 240ms var(--ease-soft) 120ms both vt-fade, 420ms var(--ease-soft) both vt-slide;
+}
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-slide {
+  from {
+    transform: translateY(14px);
+  }
+}
+
+@layer components {
+  /* Lists and tiles rise in one after another when a page opens. */
+  .rise > * {
+    animation: rise 0.6s var(--ease-soft) both;
+    animation-delay: calc(min(var(--i, 0), 12) * 45ms);
+  }
+  .rise-1 {
+    animation: rise 0.6s var(--ease-soft) both;
+  }
+
+  /* A row floods with a soft wash from the left on hover. */
+  .wash {
+    position: relative;
+    isolation: isolate;
+  }
+  .wash::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: color-mix(in srgb, var(--scene) 8%, transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.45s var(--ease-snap);
+  }
+  .wash:hover::before,
+  .wash:focus-visible::before {
+    transform: scaleX(1);
+  }
+
+  /* Clerk's card fades up once its script arrives, over our placeholder, instead of popping in. */
+  .cl-rootBox {
+    animation: rise 0.5s var(--ease-soft) both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+@layer components {
+  .letter {
+    animation: letter 0.7s var(--ease-snap) both;
+    animation-delay: calc(var(--i, 0) * 28ms + 80ms);
+  }
+}
+@keyframes letter {
+  from {
+    transform: translateY(105%);
+  }
+}
+
+/* The date picker in our tokens. Unlayered, like the library's own sheet, so these win. */
+.cal .rdp-root {
+  --rdp-accent-color: var(--steel);
+  --rdp-accent-background-color: var(--steel-wash);
+  --rdp-day-height: 40px;
+  --rdp-day-width: 40px;
+  --rdp-day_button-height: 38px;
+  --rdp-day_button-width: 38px;
+  --rdp-day_button-border-radius: 999px;
+  --rdp-range_start-color: var(--night);
+  --rdp-range_end-color: var(--night);
+  --rdp-range_middle-color: var(--ink);
+  --rdp-today-color: var(--ink);
+  --rdp-selected-border: 2px solid var(--steel);
+  --rdp-months-gap: 1.5rem;
+  --rdp-disabled-opacity: 0.3;
+  --rdp-weekday-opacity: 1;
+  --rdp-nav-height: 2.25rem;
+  --rdp-animation_timing: var(--ease-soft);
+  font-size: 0.88rem;
+}
+.cal .rdp-caption_label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.cal .rdp-weekday {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  text-transform: lowercase;
+}
+.cal .rdp-day_button {
+  transition: background-color 0.2s var(--ease-soft);
+}
+.cal .rdp-day:not(.rdp-selected):not(.rdp-disabled) .rdp-day_button:hover {
+  background: var(--night-3);
+}
+.cal .rdp-today:not(.rdp-selected) .rdp-day_button {
+  border-color: var(--line);
+  font-weight: 700;
+}
+.cal .rdp-range_start .rdp-day_button,
+.cal .rdp-range_end .rdp-day_button {
+  font-weight: 700;
+}
+.cal .rdp-nav {
+  gap: 0.35rem;
+}

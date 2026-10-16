@@ -8,6 +8,20 @@
       "when": 1791482985032,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792167842882,
+      "tag": "0001_budget_kinds",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792168883942,
+      "tag": "0002_category_look",
+      "breakpoints": true
     }
   ]
 }

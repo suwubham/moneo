@@ -10,7 +10,7 @@ export function MonthRead() {
   const [busy, start] = useTransition();
 
   return (
-    <div className="flex flex-1 flex-col justify-between gap-4">
+    <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       {state?.ok ? (
         <p className="fancy text-[1.35rem] leading-snug">{state.data}</p>
       ) : (

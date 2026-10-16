@@ -1,12 +1,16 @@
 "use client";
 
 import { useClerk } from "@clerk/nextjs";
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
 import { currencies } from "@/lib/core/money";
 import { Field, FormError, Submit } from "../../_components/form";
-import { btnDanger, btnSoft, control } from "../../_components/styles";
-import { addCategoryAction, currencyAction, deleteCategoryAction, deleteEverythingAction } from "./actions";
+import { btnDanger, btnPrimary, btnSoft, control, input } from "../../_components/styles";
+import type { ImportResult } from "@/lib/modules/imports/service";
+import { type CategoryColor, type CategoryIcon as IconKey, categoryColors, categoryIcons, lookOf } from "@/lib/modules/categories/look";
+import { CategoryIcon, colorVar, icons } from "../../_components/category-icon";
+import { Drawer } from "../../_components/drawer";
+import { addCategoryAction, currencyAction, deleteCategoryAction, deleteEverythingAction, importCashewAction, updateCategoryAction } from "./actions";
 
 export function CurrencyForm({ currency }: { currency: string }) {
   const [state, action] = useActionState(currencyAction, null);
@@ -24,6 +28,41 @@ export function CurrencyForm({ currency }: { currency: string }) {
       <Submit className={btnSoft}>Save</Submit>
       {state?.ok && <span className="label pb-2 text-steel">{state.message}</span>}
       <FormError state={state} />
+    </form>
+  );
+}
+
+export function ImportCashew({ currency }: { currency: string }) {
+  const [state, action] = useActionState<ActionState<ImportResult>, FormData>(importCashewAction, null);
+  const done = state?.ok ? state.data : undefined;
+  const otherCurrency = done?.currencies.find((c) => c !== currency);
+  return (
+    <form
+      key={state?.ok ? state.at : 0}
+      action={(form) => {
+        form.set("tz", String(new Date().getTimezoneOffset()));
+        action(form);
+      }}
+      className="flex flex-wrap items-end gap-3"
+    >
+      <Field label="cashew backup" name="file" state={state}>
+        <input id="file" name="file" type="file" required accept=".sql,.db,.sqlite" className={`${control} w-72 py-2`} />
+      </Field>
+      <Submit className={btnSoft} pending="importing…">
+        Import
+      </Submit>
+      <FormError state={state} />
+      {done && (
+        <p role="status" className="w-full text-[.9rem] text-ink-soft">
+          Imported {done.imported} transactions
+          {done.duplicates > 0 && `, skipped ${done.duplicates} already here`}
+          {done.skipped > 0 && `, left out ${done.skipped} planned or empty ones`}.
+          {done.budgetsAdded > 0 && ` Added ${done.budgetsAdded} budget${done.budgetsAdded === 1 ? "" : "s"}.`}
+          {done.linked > 0 && ` Put ${done.linked} transaction${done.linked === 1 ? "" : "s"} into their budget.`}
+          {done.budgetsSkipped > 0 && ` ${done.budgetsSkipped} Cashew budget${done.budgetsSkipped === 1 ? " is" : "s are"} not monthly or cover only some wallets, so they stayed out.`}
+          {otherCurrency && ` The backup is in ${otherCurrency}; your currency setting is ${currency}.`}
+        </p>
+      )}
     </form>
   );
 }
@@ -86,6 +125,93 @@ export function DeleteEverything({ siteUrl }: { siteUrl: string }) {
         delete my account and data
       </Submit>
       <FormError state={state} />
+    </form>
+  );
+}
+
+type Cat = { id: string; name: string; icon: string | null; color: string | null };
+
+// A chip per category; tapping it opens an editor for name, icon and colour.
+export function CategoryChip({ category }: { category: Cat }) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  return (
+    <>
+      <span className="flex items-center gap-1 rounded-full border border-line bg-night py-1 pr-1.5 pl-1 text-[.9rem] transition-colors duration-300 ease-soft hover:border-steel">
+        <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-full pr-1" aria-label={`Edit ${category.name}`}>
+          <CategoryIcon category={category} size="sm" />
+          {category.name}
+        </button>
+        <RemoveCategory id={category.id} name={category.name} />
+      </span>
+      <Drawer open={open} onClose={close} title="Edit category">
+        <CategoryEditor category={category} onDone={close} />
+      </Drawer>
+    </>
+  );
+}
+
+const pick = "grid size-11 place-items-center rounded-full border transition-colors duration-200 ease-soft";
+
+function CategoryEditor({ category, onDone }: { category: Cat; onDone: () => void }) {
+  const [state, action] = useActionState(updateCategoryAction, null);
+  const start = lookOf(category);
+  const [icon, setIcon] = useState<IconKey>(start.icon);
+  const [color, setColor] = useState<CategoryColor>(start.color);
+  const [name, setName] = useState(category.name);
+
+  useEffect(() => {
+    if (state?.ok) onDone();
+  }, [state, onDone]);
+
+  return (
+    <form action={action} className="flex flex-col gap-6">
+      <input type="hidden" name="id" value={category.id} />
+      <input type="hidden" name="icon" value={icon} />
+      <input type="hidden" name="color" value={color} />
+      <div className="flex items-center gap-4">
+        <CategoryIcon category={{ name, icon, color }} size="lg" />
+        <p className="text-[1.2rem] font-bold">{name || "…"}</p>
+      </div>
+      <Field label="name" name="name" state={state}>
+        <input id="name" name="name" required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} className={input} autoComplete="off" />
+      </Field>
+      <fieldset>
+        <legend className="label mb-2">colour</legend>
+        <div className="flex flex-wrap gap-2">
+          {categoryColors.map((c) => (
+            <label key={c} className={`${pick} cursor-pointer ${c === color ? "border-ink" : "border-transparent"}`}>
+              <input type="radio" name="color-pick" value={c} checked={c === color} onChange={() => setColor(c)} className="sr-only" />
+              <span className="sr-only">{c}</span>
+              <span aria-hidden className="size-6 rounded-full" style={{ background: colorVar(c) }} />
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend className="label mb-2">icon</legend>
+        <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
+          {categoryIcons.map((k) => {
+            const Icon = icons[k];
+            const on = k === icon;
+            return (
+              <label
+                key={k}
+                className={`${pick} cursor-pointer ${on ? "border-transparent" : "border-line text-ink-soft hover:text-ink"}`}
+                style={on ? { background: `color-mix(in srgb, ${colorVar(color)} 20%, transparent)`, color: colorVar(color) } : undefined}
+              >
+                <input type="radio" name="icon-pick" value={k} checked={on} onChange={() => setIcon(k)} className="sr-only" />
+                <span className="sr-only">{k}</span>
+                <Icon aria-hidden className="size-[1.15rem]" strokeWidth={1.9} />
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+      <FormError state={state} />
+      <div>
+        <Submit className={btnPrimary}>Save category</Submit>
+      </div>
     </form>
   );
 }
