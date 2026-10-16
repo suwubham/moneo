@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 const arrowBtn =
   "grid size-9 place-items-center rounded-full border border-line text-ink-soft transition-colors duration-200 ease-soft hover:border-steel hover:text-ink disabled:opacity-30";
@@ -18,9 +18,25 @@ export function SortableList<T extends { id: string; name: string }>({
 }) {
   const [dragging, setDragging] = useState<string | null>(null);
   const rows = useRef(new Map<string, HTMLLIElement>());
+  // Where each row was before a move, so the rows can glide from there instead of jumping (FLIP).
+  const before = useRef(new Map<string, DOMRect>());
+
+  useLayoutEffect(() => {
+    if (before.current.size === 0) return;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    rows.current.forEach((el, id) => {
+      const from = before.current.get(id);
+      if (!from || reduce) return;
+      const dy = from.top - el.getBoundingClientRect().top;
+      if (Math.abs(dy) < 1) return;
+      el.animate([{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }], { duration: 260, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });
+    });
+    before.current.clear();
+  }, [items]);
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= items.length || from === to) return;
+    rows.current.forEach((el, id) => before.current.set(id, el.getBoundingClientRect()));
     const next = [...items];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
@@ -46,7 +62,10 @@ export function SortableList<T extends { id: string; name: string }>({
             if (el) rows.current.set(a.id, el);
             else rows.current.delete(a.id);
           }}
-          className={`flex items-center gap-3 rounded-[1.1rem] border bg-night px-2 py-2 transition-[transform,border-color] duration-200 ease-soft ${dragging === a.id ? "z-10 scale-[1.02] border-steel" : "border-line"}`}
+          // The dragged row lifts (scale, with its shadow fading in on a layer of its own) and settles when dropped.
+          className={`relative flex items-center gap-3 rounded-[1.1rem] border px-2 py-2 transition-[scale,border-color,background-color] duration-150 ease-soft after:pointer-events-none after:absolute after:inset-0 after:-z-10 after:rounded-[1.1rem] after:shadow-[0_18px_40px_-16px_rgba(0,0,0,.65)] after:transition-opacity after:duration-150 ${
+            dragging === a.id ? "z-10 scale-[1.03] border-steel bg-night-3 after:opacity-100" : "border-line bg-night after:opacity-0"
+          }`}
         >
           <button
             type="button"

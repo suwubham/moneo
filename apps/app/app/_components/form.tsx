@@ -34,7 +34,7 @@ export function Field({
       </label>
       {children}
       {err ? (
-        <p id={`${name}-error`} className="mt-1.5 text-[.85rem] text-accent">
+        <p id={`${name}-error`} className="drop-in mt-1.5 text-[.85rem] text-accent">
           {err}
         </p>
       ) : hint ? (
@@ -47,7 +47,7 @@ export function Field({
 export function FormError({ state }: { state: ActionState<unknown> }) {
   if (!state || state.ok || state.error.code === "validation_error") return null;
   return (
-    <p role="alert" className="rounded-lg border border-accent/50 px-3.5 py-2.5 text-[.9rem] text-accent">
+    <p key={state.at} role="alert" className="shake rounded-lg border border-accent/50 px-3.5 py-2.5 text-[.9rem] text-accent">
       {state.error.message}
     </p>
   );

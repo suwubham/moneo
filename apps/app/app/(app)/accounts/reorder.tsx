@@ -43,7 +43,7 @@ function Order({ accounts, onDone }: { accounts: Item[]; onDone: () => void }) {
   return (
     <div className="flex flex-col gap-5">
       <p className="text-ink-soft">This order is used everywhere accounts are listed. Archived accounts stay at the end.</p>
-      <SortableList items={order} onChange={setOrder} render={(a) => <AccountIcon kind={a.kind} icon={a.icon} color={a.color} className="size-9" />} />
+      <SortableList items={order} onChange={setOrder} render={(a) => <AccountIcon kind={a.kind} icon={a.icon} color={a.color} size="sm" />} />
       <FormError state={state} />
       <div>
         <button type="button" className={btnPrimary} disabled={!changed || busy} onClick={() => start(async () => setState(await reorderAccountsAction(order.map((a) => a.id))))}>

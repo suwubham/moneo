@@ -6,6 +6,7 @@ import type { ActionState } from "@/lib/core/action-state";
 import { enqueue } from "@/lib/offline/sync";
 import { readOfflineForm } from "@/lib/offline/validate";
 import { CategoryIcon } from "../../_components/category-icon";
+import { Segmented, segItem } from "../../_components/segmented";
 import { Field, FormError, Submit } from "../../_components/form";
 import { btn, btnDanger, btnPrimary, control, input, textarea } from "../../_components/styles";
 import { deleteTransactionAction, saveTransactionAction } from "./actions";
@@ -26,7 +27,6 @@ export type TxValues = {
   excludeFromBudgets?: boolean;
 };
 
-const seg = "flex-1 rounded-full px-4 py-2 text-center font-mono text-[.8rem] transition-colors duration-300 ease-soft";
 
 export function TransactionForm({
   values,
@@ -76,14 +76,16 @@ export function TransactionForm({
       className="flex flex-col gap-5"
     >
       {values.id && <input type="hidden" name="id" value={values.id} />}
-      <fieldset className="flex gap-1 rounded-full border border-line bg-night p-1">
+      <fieldset>
         <legend className="sr-only">Direction</legend>
-        {(["out", "in"] as const).map((d) => (
-          <label key={d} className={`${seg} cursor-pointer ${direction === d ? "bg-night-3 text-ink" : "text-ink-soft"}`}>
-            <input type="radio" name="direction" value={d} checked={direction === d} onChange={() => setDirection(d)} className="sr-only" />
-            {d === "out" ? "money out" : "money in"}
-          </label>
-        ))}
+        <Segmented count={2} index={direction === "out" ? 0 : 1} className="bg-night">
+          {(["out", "in"] as const).map((d) => (
+            <label key={d} className={`${segItem(direction === d)} cursor-pointer py-2`}>
+              <input type="radio" name="direction" value={d} checked={direction === d} onChange={() => setDirection(d)} className="sr-only" />
+              {d === "out" ? "money out" : "money in"}
+            </label>
+          ))}
+        </Segmented>
       </fieldset>
       <div className="grid grid-cols-[1fr_auto] gap-3">
         <Field label="what was it" name="description" state={state}>
@@ -124,7 +126,7 @@ export function TransactionForm({
           {[null, ...shown].map((c) => (
             <label
               key={c?.id ?? "none"}
-              className="flex cursor-pointer items-center gap-2 rounded-full border border-line bg-night py-1 pr-3 pl-1 text-[.88rem] text-ink-soft transition-colors duration-200 ease-soft hover:border-steel has-checked:border-ink has-checked:text-ink"
+              className="chip-pick flex cursor-pointer items-center gap-2 rounded-full border border-line bg-night py-1 pr-3 pl-1 text-[.88rem] text-ink-soft transition-colors duration-200 ease-soft hover:border-steel has-checked:border-ink has-checked:text-ink"
             >
               <input
                 type="radio"

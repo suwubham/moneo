@@ -3,6 +3,7 @@
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useEffect } from "react";
 import { ThemeToggle } from "@moneo/ui/theme-toggle";
 import { ClientOnly } from "./client-only";
@@ -109,18 +110,72 @@ export function Nav() {
   return <NavShell path={path} />;
 }
 
+// The tab you tapped lights up at once; the real path takes over when the page arrives.
+function useTarget(path: string | null) {
+  const [want, setWant] = useState<{ href: string; from: string | null } | null>(null);
+  const target = want && want.from === path ? want.href : path;
+  return [target, (href: string) => setWant({ href, from: path })] as const;
+}
+
+// One highlight that slides between links. Links differ in width, so it moves with translate and
+// corrects its width with a short scaleX settle (transform only).
+function PillIndicator({ list, href }: { list: React.RefObject<Map<string, HTMLAnchorElement>>; href: string | undefined }) {
+  const el = useRef<HTMLSpanElement>(null);
+  const last = useRef<{ x: number; w: number } | null>(null);
+
+  // Measured after layout and written straight to the element: positions come from the DOM, not from React state.
+  useLayoutEffect(() => {
+    const span = el.current;
+    const link = href ? list.current.get(href) : undefined;
+    if (!span) return;
+    if (!link) {
+      span.style.opacity = "0";
+      last.current = null;
+      return;
+    }
+    const next = { x: link.offsetLeft, w: link.offsetWidth };
+    span.style.opacity = "1";
+    span.style.width = `${next.w}px`;
+    span.style.transform = `translateX(${next.x}px)`;
+    const prev = last.current;
+    last.current = next;
+    if (!prev || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    span.animate(
+      [{ transform: `translateX(${prev.x}px) scaleX(${prev.w / next.w})` }, { transform: `translateX(${next.x}px) scaleX(1)` }],
+      { duration: 320, easing: "cubic-bezier(0.7, 0, 0.2, 1)" },
+    );
+  }, [href, list]);
+
+  return <span ref={el} aria-hidden className="absolute inset-y-0 left-0 origin-left rounded-full bg-scene opacity-0 transition-opacity duration-200" />;
+}
+
 // Rendered without a path in the static shell, before the URL is known.
 export function NavShell({ path }: { path: string | null }) {
+  const [target, go] = useTarget(path);
+  const linkEls = useRef(new Map<string, HTMLAnchorElement>());
+  const pillOn = [...links, settings].find((l) => active(target, l.href))?.href;
+  const tabIndex = links.findIndex((l) => active(target, l.href));
+
   return (
     <>
       <nav aria-label="Main" className={pill} style={{ viewTransitionName: "nav-pill" }}>
         <Mark />
-        <ul className="flex items-center gap-0.5">
+        <ul className="relative flex items-center gap-0.5">
+          <PillIndicator list={linkEls} href={pillOn} />
           {[...links, settings].map((l) => {
-            const on = active(path, l.href);
+            const on = l.href === pillOn;
             return (
-              <li key={l.href}>
-                <Link href={l.href} aria-current={on ? "page" : undefined} className={`${pillLink} ${on ? "bg-scene text-night" : "text-ink-soft hover:text-ink"}`}>
+              <li key={l.href} className="relative z-10">
+                <Link
+                  href={l.href}
+                  ref={(e) => {
+                    if (e) linkEls.current.set(l.href, e);
+                    else linkEls.current.delete(l.href);
+                  }}
+                  onClick={() => go(l.href)}
+                  aria-current={active(path, l.href) ? "page" : undefined}
+                  className={`${pillLink} block ${on ? "text-night delay-150 duration-150" : "text-ink-soft duration-100 hover:text-ink"}`}
+                >
                   {l.label}
                 </Link>
               </li>
@@ -153,11 +208,23 @@ export function NavShell({ path }: { path: string | null }) {
       </header>
 
       <nav aria-label="Main" className={tabs} style={{ viewTransitionName: "nav-tabs" }}>
-        {links.map((l) => {
-          const on = active(path, l.href);
+        {/* Tabs are equal width, so the highlight only needs to slide. */}
+        <span
+          aria-hidden
+          className={`absolute top-1 bottom-1 left-1 rounded-[1.1rem] bg-scene transition-[translate,opacity] duration-300 ease-snap ${tabIndex < 0 ? "opacity-0" : ""}`}
+          style={{ width: `calc((100% - 0.5rem) / ${links.length})`, translate: `${Math.max(0, tabIndex) * 100}% 0` }}
+        />
+        {links.map((l, i) => {
+          const on = i === tabIndex;
           return (
-            <Link key={l.href} href={l.href} aria-current={on ? "page" : undefined} className={`${tab} ${on ? "bg-scene text-night" : "text-ink-soft"}`}>
-              <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={() => go(l.href)}
+              aria-current={active(path, l.href) ? "page" : undefined}
+              className={`${tab} relative z-10 ${on ? "text-night delay-150 duration-150" : "text-ink-soft duration-100"}`}
+            >
+              <svg viewBox="0 0 24 24" className={`size-5 transition-transform duration-300 ease-soft ${on ? "-translate-y-px scale-110" : ""}`} aria-hidden>
                 {l.icon}
               </svg>
               {l.short}

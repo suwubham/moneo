@@ -45,7 +45,7 @@ export function AccountForm({ account, onDone }: { account?: AccountValues; onDo
       <input type="hidden" name="icon" value={icon ?? ""} />
       <input type="hidden" name="color" value={color ?? ""} />
       <div className="flex items-center gap-3">
-        <AccountIcon kind={kind} icon={icon} color={color} className="size-12" />
+        <AccountIcon kind={kind} icon={icon} color={color} size="lg" />
         <p className="label">how it shows up across Moneo</p>
       </div>
       <Field label="name" name="name" state={state}>

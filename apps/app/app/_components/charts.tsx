@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
 import {
   Area,
   AreaChart,
@@ -96,6 +97,9 @@ function TableTwin({ caption, head, rows }: { caption: string; head: string[]; r
   );
 }
 
+// The flow chart's y-axis width; clicks are mapped to months across the rest.
+const Y_AXIS = 44;
+
 export type FlowPoint = { key: string; label: string; moneyIn: number; moneyOut: number; href: string };
 
 const flowSeries: Series[] = [
@@ -105,15 +109,39 @@ const flowSeries: Series[] = [
 
 export function FlowChart({ data, currency, active }: { data: FlowPoint[]; currency: string; active: string }) {
   const router = useRouter();
+  const [pending, start] = useTransition();
+  // The clicked month lights up at once, before its data arrives.
+  const [picked, setPicked] = useState<string | null>(null);
+  const shown = pending && picked ? picked : active;
+  // Set the moment a click is taken, before React re-renders, so a second handler for the same click is ignored.
+  const busy = useRef(false);
+
+  // Anywhere in a month's column opens it, worked out from where the click lands, because a tap on a phone
+  // has no hover to tell the chart which month is under the finger. A double click, or a click while one is
+  // loading, does nothing more: the second click would land on the new chart and open whatever moved under it.
+  const open = (e: React.MouseEvent<HTMLDivElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    const plotLeft = box.left + Y_AXIS;
+    const index = Math.floor(((e.clientX - plotLeft) / (box.width - Y_AXIS)) * data.length);
+    const point = data[index];
+    if (!point || e.detail > 1 || busy.current || point.key === active) return;
+    busy.current = true;
+    setPicked(point.key);
+    start(async () => {
+      router.push(point.href, { scroll: false });
+    });
+    setTimeout(() => (busy.current = false), 600);
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-3">
       <Legend series={flowSeries} />
-      <div className="h-52 min-h-52 flex-1">
+      <div onClick={open} className={`chart h-52 min-h-52 flex-1 cursor-pointer transition-opacity duration-300 ease-soft ${pending ? "opacity-70" : ""}`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} barGap={2} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
             {grid}
             <XAxis dataKey="label" {...axis} />
-            <YAxis {...axis} width={44} tickFormatter={(v: number) => compact.format(v)} />
+            <YAxis {...axis} width={Y_AXIS} tickFormatter={(v: number) => compact.format(v)} />
             <Tooltip cursor={{ fill: "color-mix(in srgb, var(--ink) 6%, transparent)" }} content={(p) => <Tip active={p.active} payload={p.payload} label={p.label} currency={currency} series={flowSeries} />} />
             {flowSeries.map((s) => (
               <Bar
@@ -122,12 +150,12 @@ export function FlowChart({ data, currency, active }: { data: FlowPoint[]; curre
                 fill={s.color}
                 radius={[4, 4, 0, 0]}
                 maxBarSize={22}
-                cursor="pointer"
-                onClick={(_, i) => router.push(data[i].href, { scroll: false })}
+                animationDuration={600}
+                animationEasing="ease-out"
               >
                 {/* The open month stays full strength; the others step back. */}
                 {data.map((d) => (
-                  <Cell key={d.key} fillOpacity={d.key === active ? 1 : 0.55} />
+                  <Cell key={d.key} fillOpacity={d.key === shown ? 1 : 0.55} className="transition-[fill-opacity] duration-300" />
                 ))}
               </Bar>
             ))}
@@ -153,7 +181,7 @@ export function PaceChart({ data, currency, labels }: { data: PacePoint[]; curre
   return (
     <div className="flex flex-1 flex-col gap-3">
       <Legend series={series} line />
-      <div className="h-52 min-h-52 flex-1">
+      <div className="chart h-52 min-h-52 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.map((d) => ({ ...d, label: `day ${d.day}` }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             {grid}
@@ -187,7 +215,7 @@ export type BalancePoint = { date: string; label: string; balance: number };
 export function BalanceChart({ data, currency }: { data: BalancePoint[]; currency: string }) {
   const series: Series[] = [{ key: "balance", label: "balance", color: "var(--chart-in)" }];
   return (
-    <div className="h-56">
+    <div className="chart h-56">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
@@ -222,7 +250,7 @@ export function BudgetHistory({ data, limit, currency }: { data: HistoryPoint[];
           <span aria-hidden className="h-px w-3.5 bg-ink-soft" /> limit
         </span>
       </p>
-      <div className="h-44">
+      <div className="chart h-44">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 12, right: 0, left: 0, bottom: 0 }}>
             {grid}
@@ -262,9 +290,9 @@ export function MiniColumns({
   const series: Series[] = [{ key: "value", label: name, color }];
   const top = Math.max(limit ?? 0, ...data.map((d) => d.value), 1);
   return (
-    <div style={{ height }} className="w-full">
+    <div style={{ height }} className="chart w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barCategoryGap="22%">
+        <BarChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barCategoryGap="22%" accessibilityLayer={false}>
           <XAxis dataKey="label" {...axis} tick={{ ...tick, fontSize: 10 }} interval={0} height={16} />
           <YAxis hide domain={[0, top * 1.05]} />
           <Tooltip
@@ -273,7 +301,7 @@ export function MiniColumns({
             content={(p) => <Tip active={p.active} payload={p.payload} label={p.label} currency={currency} series={series} />}
           />
           {limit != null && <ReferenceLine y={limit} stroke="var(--ink-soft)" strokeWidth={1} />}
-          <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={16} isAnimationActive={false}>
+          <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={16} animationDuration={500} animationEasing="ease-out">
             {data.map((d) => (
               <Cell key={d.key} fillOpacity={d.key === active ? 1 : 0.5} />
             ))}
@@ -304,9 +332,9 @@ export function MiniTrend({
   const gid = `mt-${name.replace(/\W/g, "")}`;
   return (
     <div className="w-full">
-      <div style={{ height }}>
+      <div style={{ height }} className="chart">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 4, right: 2, left: 2, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 4, right: 2, left: 2, bottom: 0 }} accessibilityLayer={false}>
             <defs>
               <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={color} stopOpacity={0.22} />

@@ -117,7 +117,7 @@ export function RangePicker({
           role="dialog"
           aria-label="Pick dates"
           // A sheet above the tab bar on phones; a dropdown under the button from md up, over the floating nav.
-          className="rise-1 fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex max-h-[calc(100svh-7rem)] flex-col overflow-y-auto rounded-[1.1rem] border border-line bg-night-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] md:absolute md:inset-x-auto md:top-11 md:bottom-auto md:left-0 md:max-h-none md:w-max md:flex-row md:overflow-hidden"
+          className="pop pop-sheet fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex max-h-[calc(100svh-7rem)] flex-col overflow-y-auto rounded-[1.1rem] border border-line bg-night-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] md:absolute md:inset-x-auto md:top-11 md:bottom-auto md:left-0 md:max-h-none md:w-max md:flex-row md:overflow-hidden"
         >
           <ul className="flex shrink-0 gap-1 overflow-x-auto border-b border-line p-2 md:w-40 md:flex-col md:overflow-visible md:border-r md:border-b-0 [scrollbar-width:none]">
             {presets(today).map((p) => {

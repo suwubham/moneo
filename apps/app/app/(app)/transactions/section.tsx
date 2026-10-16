@@ -159,7 +159,7 @@ export async function TransactionsSection({
                 aria-current={on ? "page" : undefined}
                 className={`${chip} ${on ? "border-scene bg-scene text-night" : "border-line bg-night-2 text-ink-soft hover:border-steel hover:text-ink"}`}
               >
-                {a.kind && <AccountIcon kind={a.kind} icon={a.icon} color={a.color} className="-ml-1.5 size-6 [&>svg]:size-3.5" />}
+                {a.kind && <AccountIcon kind={a.kind} icon={a.icon} color={a.color} size="xs" className="-ml-1.5" />}
                 {a.name}
               </Link>
             );

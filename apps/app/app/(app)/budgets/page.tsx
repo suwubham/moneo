@@ -117,7 +117,7 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
                     </span>
                     <span className="relative mt-4 block h-2.5 overflow-hidden rounded-full bg-night">
                       <span
-                        className={`absolute inset-0 origin-left rounded-full ${fill[status]} transition-transform duration-700 ease-snap`}
+                        className={`grow-x absolute inset-0 origin-left rounded-full ${fill[status]} transition-transform duration-700 ease-snap`}
                         style={{ transform: `scaleX(${Math.min(1, ratio)})` }}
                       />
                       {elapsed > 0 && elapsed < 1 && (

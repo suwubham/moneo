@@ -100,7 +100,7 @@ export function OfflineApp() {
             <ul className="flex flex-col divide-y divide-line">
               {accounts.map((a) => (
                 <li key={a.id} className="flex items-center gap-3 py-2.5">
-                  <AccountIcon kind={a.kind} icon={a.icon} color={a.color} className="size-9" />
+                  <AccountIcon kind={a.kind} icon={a.icon} color={a.color} size="sm" />
                   <span className="min-w-0 flex-1 truncate font-semibold">{a.name}</span>
                   <span className="font-semibold tabular-nums">{formatMoney(a.balance, cur)}</span>
                 </li>
@@ -126,7 +126,7 @@ export function OfflineApp() {
                       </span>
                       <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-night">
                         <span
-                          className={`block h-full origin-left rounded-full ${ratio > 1 ? "bg-accent" : ratio >= 0.8 ? "bg-amber" : "bg-steel"}`}
+                          className={`grow-x block h-full origin-left rounded-full ${ratio > 1 ? "bg-accent" : ratio >= 0.8 ? "bg-amber" : "bg-steel"}`}
                           style={{ transform: `scaleX(${Math.min(1, ratio)})` }}
                         />
                       </span>

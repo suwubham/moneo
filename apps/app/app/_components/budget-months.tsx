@@ -18,7 +18,7 @@ export function BudgetMonths({ history, limit, currency, href }: { history: Hist
             <Link href={href(h.key)} className="wash grid grid-cols-[4.5rem_1fr_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-2.5">
               <span className="label whitespace-nowrap text-ink">{monthLabel(h.key).replace(/(\w{3})\w* (\d{4})/, "$1 $2").toLowerCase()}</span>
               <span className="h-1.5 overflow-hidden rounded-full bg-night-3">
-                <span className={`block h-full origin-left rounded-full ${fill[status]}`} style={{ transform: `scaleX(${Math.min(1, ratio)})` }} />
+                <span className={`grow-x block h-full origin-left rounded-full ${fill[status]}`} style={{ transform: `scaleX(${Math.min(1, ratio)})` }} />
               </span>
               <span className="flex items-baseline justify-end gap-2 whitespace-nowrap">
                 <span className="text-[.9rem] font-semibold tabular-nums">{formatMoney(h.spent, currency, { compact: true })}</span>

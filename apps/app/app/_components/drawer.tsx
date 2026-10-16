@@ -17,11 +17,15 @@ export function Drawer({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const openedAt = useRef(0);
 
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      openedAt.current = performance.now();
+    }
     if (!open && d.open) d.close();
     // Hidden routes keep their state under <Activity>; never leave a modal open behind them.
     return () => d.close();
@@ -36,8 +40,13 @@ export function Drawer({
         e.preventDefault();
         onClose();
       }}
+      onMouseDown={(e) => {
+        // A double click on the dimmed backdrop would select the nearest word in the drawer.
+        if (e.target === e.currentTarget && e.detail > 1) e.preventDefault();
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        // The second click of a double click that opened the drawer lands on the backdrop; it should not close it.
+        if (e.target === e.currentTarget && performance.now() - openedAt.current > 400) onClose();
       }}
     >
       <div className="flex h-full flex-col overflow-y-auto overscroll-contain px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-7">
@@ -49,7 +58,7 @@ export function Drawer({
             </svg>
           </button>
         </div>
-        {open && children}
+        {open && <div className="drawer-body">{children}</div>}
       </div>
     </dialog>
   );

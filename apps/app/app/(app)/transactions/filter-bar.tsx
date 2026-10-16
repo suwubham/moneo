@@ -3,12 +3,12 @@
 import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { Segmented, segItem } from "../../_components/segmented";
 import { controlSm } from "../../_components/styles";
 
 type Option = { id: string; name: string };
 type Values = { q?: string; category?: string; budget?: string; type?: "in" | "out"; min?: string; max?: string };
 
-const seg = "rounded-full px-3.5 py-1.5 font-mono text-[.78rem] transition-colors duration-200 ease-soft";
 const types: [Values["type"], string][] = [
   [undefined, "all"],
   ["in", "money in"],
@@ -89,18 +89,14 @@ export function FilterBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Money in or out" className="flex w-full gap-0.5 rounded-full border border-line bg-night-2 p-0.5 sm:w-auto">
-          {types.map(([v, text]) => (
-            <button
-              key={text}
-              type="button"
-              aria-pressed={values.type === v}
-              onClick={() => go({ type: v })}
-              className={`${seg} flex-1 sm:flex-none ${values.type === v ? "bg-scene text-night" : "text-ink-soft hover:text-ink"}`}
-            >
-              {text}
-            </button>
-          ))}
+        <div role="group" aria-label="Money in or out" className="w-full sm:w-auto">
+          <Segmented count={types.length} index={Math.max(0, types.findIndex(([v]) => v === values.type))} className="bg-night-2">
+            {types.map(([v, text]) => (
+              <button key={text} type="button" aria-pressed={values.type === v} onClick={() => go({ type: v })} className={segItem(values.type === v)}>
+                {text}
+              </button>
+            ))}
+          </Segmented>
         </div>
         <label className="min-w-0 flex-1 basis-[calc(50%-.25rem)] sm:basis-auto sm:flex-none">
           <span className="sr-only">Category</span>

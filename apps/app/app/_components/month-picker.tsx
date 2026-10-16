@@ -64,7 +64,7 @@ export function MonthPicker({ base, month, now }: { base: string; month: string;
         <div
           role="dialog"
           aria-label="Pick a month"
-          className="rise-1 absolute top-11 left-0 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-[1.1rem] border border-line bg-night-2 p-4 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)]"
+          className="pop absolute top-11 left-0 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-[1.1rem] border border-line bg-night-2 p-4 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)]"
         >
           <div className="mb-3 flex items-center justify-between">
             <button type="button" onClick={() => setYear((y) => y - 1)} className="grid size-8 place-items-center rounded-full text-ink-soft hover:text-ink" aria-label="Previous year">

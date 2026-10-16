@@ -250,7 +250,7 @@ function CategoryOrder({ categories, onDone }: { categories: OrderCat[]; onDone:
   const order = [...spending, ...income];
   const before = [...categories.filter((c) => c.kind === "expense"), ...categories.filter((c) => c.kind === "income")];
   const changed = order.some((c, i) => c.id !== before[i].id);
-  const icon = (c: OrderCat) => <CategoryIcon category={c} size="sm" className="size-9" />;
+  const icon = (c: OrderCat) => <CategoryIcon category={c} size="sm" />;
   return (
     <div className="flex flex-col gap-6">
       <p className="text-ink-soft">This order is used in the category pickers, filters and lists.</p>

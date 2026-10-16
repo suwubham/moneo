@@ -26,7 +26,7 @@ export function PendingChanges({ categories, accounts, currency, account }: { ca
           const cat = o.kind === "delete" ? null : (categories.find((c) => c.id === o.input.categoryId) ?? null);
           const amount = o.kind === "delete" ? null : (o.input.direction === "out" ? -1 : 1) * Number(o.input.amount);
           return (
-            <li key={o.opId} className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3.5 px-4 py-3 sm:px-5">
+            <li key={o.opId} className="rise-1 grid grid-cols-[auto_1fr_auto] items-center gap-x-3.5 px-4 py-3 sm:px-5">
               <CategoryIcon category={cat} />
               <span className="min-w-0">
                 <span className={`block truncate font-semibold ${o.kind === "delete" ? "line-through" : ""}`}>

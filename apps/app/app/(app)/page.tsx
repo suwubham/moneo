@@ -250,7 +250,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
                       </span>
                       <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-night">
                         <span
-                          className="block h-full origin-left rounded-full bg-chart-out transition-transform duration-700 ease-snap"
+                          className="grow-x block h-full origin-left rounded-full bg-chart-out transition-transform duration-700 ease-snap"
                           style={{ transform: `scaleX(${toNumber(t.spent) / topMax})` }}
                         />
                       </span>
@@ -292,7 +292,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
                       <span className={`tabular-nums ${b.status === "over" ? "text-accent" : "text-ink-soft"}`}>{Math.round(b.ratio * 100)}%</span>
                     </span>
                     <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-night">
-                      <span className={`block h-full origin-left rounded-full ${fill[b.status]} transition-transform duration-700 ease-snap`} style={{ transform: `scaleX(${Math.min(1, b.ratio)})` }} />
+                      <span className={`grow-x block h-full origin-left rounded-full ${fill[b.status]} transition-transform duration-700 ease-snap`} style={{ transform: `scaleX(${Math.min(1, b.ratio)})` }} />
                     </span>
                   </BudgetPeek>
                 </li>
