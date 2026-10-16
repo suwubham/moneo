@@ -80,6 +80,21 @@ export async function insertTransaction(c: Conn, row: typeof transactions.$infer
   return created;
 }
 
+// For offline sync: the device picked the id, so a retry of the same create inserts nothing.
+export async function insertTransactionOnce(c: Conn, row: typeof transactions.$inferInsert & { id: string }) {
+  const [created] = await c.insert(transactions).values(row).onConflictDoNothing({ target: transactions.id }).returning();
+  return created ?? null;
+}
+
+export async function findTransaction(c: Conn, userId: string, id: string) {
+  const [row] = await c
+    .select()
+    .from(transactions)
+    .where(and(eq(transactions.userId, userId), eq(transactions.id, id)))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function insertTransactions(c: Conn, rows: (typeof transactions.$inferInsert)[]) {
   for (let i = 0; i < rows.length; i += 1000) await c.insert(transactions).values(rows.slice(i, i + 1000));
 }

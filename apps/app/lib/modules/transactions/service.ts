@@ -1,12 +1,21 @@
 import "server-only";
 import { z } from "zod";
-import { notFound } from "@/lib/core/errors";
+import { AppError, notFound } from "@/lib/core/errors";
 import { amountInput, withSign } from "@/lib/core/money";
 import { getDb, unitOfWork } from "@/lib/db";
 import { assertAccount } from "@/lib/modules/accounts/service";
 import { assertPickedBudget } from "@/lib/modules/budgets/service";
 import { assertCategory } from "@/lib/modules/categories/service";
-import { type TxFilter, insertTransaction, listTransactions, patchTransaction, removeTransaction, totals } from "./repository";
+import {
+  type TxFilter,
+  findTransaction,
+  insertTransaction,
+  insertTransactionOnce,
+  listTransactions,
+  patchTransaction,
+  removeTransaction,
+  totals,
+} from "./repository";
 
 const optionalId = z.preprocess((v) => (v === "" || v == null ? null : v), z.uuid().nullable());
 
@@ -47,6 +56,20 @@ export async function createTransaction(userId: string, input: TransactionInput)
     await assertCategory(userId, input.categoryId, tx);
     await assertPickedBudget(userId, input.budgetId, tx);
     return insertTransaction(tx, { userId, ...toRow(input) });
+  });
+}
+
+// A create sent from the offline outbox. Replaying it is harmless: the id is the device's, so the second try finds the first.
+export async function createTransactionOnce(userId: string, id: string, input: TransactionInput) {
+  return unitOfWork(async (tx) => {
+    await assertAccount(userId, input.accountId, tx);
+    await assertCategory(userId, input.categoryId, tx);
+    await assertPickedBudget(userId, input.budgetId, tx);
+    const created = await insertTransactionOnce(tx, { id, userId, ...toRow(input) });
+    if (created) return created;
+    const existing = await findTransaction(tx, userId, id);
+    if (!existing) throw new AppError(409, "id_taken", "That transaction id is already used.");
+    return existing;
   });
 }
 

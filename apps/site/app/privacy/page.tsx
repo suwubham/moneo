@@ -53,6 +53,13 @@ export default function Privacy() {
             transactions as listed above, and deletes the file straight away.
           </p>
 
+          <h2 className={h2}>On your device</h2>
+          <p className={p}>
+            So Moneo still works without internet, your browser keeps a copy of your accounts, budgets and the last
+            three months of transactions, plus anything you add while offline until it reaches our server. It stays in
+            this browser only and is removed when you sign out. If you share a device, sign out when you are done.
+          </p>
+
           <h2 className={h2}>Signing in</h2>
           <p className={p}>
             Sign-in is handled by Clerk. Clerk holds your email address and login details. Moneo keeps only the user id

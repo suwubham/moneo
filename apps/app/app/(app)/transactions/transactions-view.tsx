@@ -7,6 +7,7 @@ import type { ActionState } from "@/lib/core/action-state";
 import { formatMoney, toNumber } from "@/lib/core/money";
 import { CategoryIcon } from "../../_components/category-icon";
 import { Drawer } from "../../_components/drawer";
+import { PendingChanges } from "../../_components/pending-changes";
 import { badge, btnPrimary, btnSoft, card } from "../../_components/styles";
 import { draftTransactionAction } from "./actions";
 import { FilterBar } from "./filter-bar";
@@ -100,6 +101,7 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
         <FilterBar {...filters} />
       </div>
       <div>{toolbar}</div>
+      <PendingChanges categories={categories} accounts={accounts} currency={currency} account={defaultAccount} />
 
       {groups.length > 0 && (
         <div className={`${card} overflow-clip`}>

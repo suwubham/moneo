@@ -26,4 +26,6 @@ Things that are easy to get wrong. Read `README.md` for setup.
 - Never log personal or financial data (names, emails, amounts, descriptions, message text). Log the kind of event and timings.
 - Anything that changes what data is stored or sent to a third party updates `apps/site/app/privacy/page.tsx` in the same PR.
 - App env vars are `APP_*`. Third-party ones keep their names (`DATABASE_URL`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, Clerk's).
+- Offline: `public/sw.js` caches only build files and `/offline`, never signed-in pages or API responses. The device copy (snapshot and outbox) lives in IndexedDB via `lib/offline`, keyed to the user and cleared on sign-out. Offline creates carry a device-made id so a replayed sync never duplicates (`createTransactionOnce`). Bump `VERSION` in `sw.js` when its caching changes.
+- A CSS custom property set to `color-mix()` with a `var()` inside gets dropped by the build; use a plain token value instead.
 - Colours only through tokens (`bg-night-2`, `text-ink-soft`); one filled accent per screen; animate transform/opacity only.

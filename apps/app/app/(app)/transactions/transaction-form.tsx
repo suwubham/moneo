@@ -1,7 +1,10 @@
 "use client";
 
+import { useOffline } from "next/offline";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
+import { enqueue } from "@/lib/offline/sync";
+import { readOfflineForm } from "@/lib/offline/validate";
 import { CategoryIcon } from "../../_components/category-icon";
 import { Field, FormError, Submit } from "../../_components/form";
 import { btn, btnDanger, btnPrimary, control, input, textarea } from "../../_components/styles";
@@ -30,15 +33,22 @@ export function TransactionForm({
   accounts,
   categories,
   budgets,
+  queue = false,
   onDone,
 }: {
   values: TxValues;
   accounts: Option[];
   categories: CategoryOption[];
   budgets: Option[];
+  // Always save to the device outbox (the offline page has no server to talk to).
+  queue?: boolean;
   onDone: () => void;
 }) {
-  const [state, action] = useActionState(saveTransactionAction, null);
+  const [saved, action] = useActionState(saveTransactionAction, null);
+  const [local, setLocal] = useState<ActionState>(null);
+  const state = local ?? saved;
+  const offline = useOffline();
+  const toOutbox = () => queue || offline || !navigator.onLine;
   const [del, setDel] = useState<ActionState>(null);
   const [busy, start] = useTransition();
   const [direction, setDirection] = useState(values.direction);
@@ -51,7 +61,20 @@ export function TransactionForm({
   }, [state, del, onDone]);
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form
+      action={(form) => {
+        if (!toOutbox()) return action(form);
+        // No connection: check it here, keep it on the device, and let sync send it later.
+        const read = readOfflineForm(form);
+        if (!read.ok) {
+          setLocal({ ok: false, error: { code: "validation_error", message: "Some fields need another look.", details: { issues: read.issues } }, at: Date.now() });
+          return;
+        }
+        setLocal(null);
+        void enqueue({ kind: values.id ? "update" : "create", id: values.id, input: read.input }).then(onDone);
+      }}
+      className="flex flex-col gap-5"
+    >
       {values.id && <input type="hidden" name="id" value={values.id} />}
       <fieldset className="flex gap-1 rounded-full border border-line bg-night p-1">
         <legend className="sr-only">Direction</legend>
@@ -143,7 +166,14 @@ export function TransactionForm({
         <Submit className={btnPrimary}>{values.id ? "Save changes" : "Add transaction"}</Submit>
         {values.id &&
           (confirming ? (
-            <button type="button" disabled={busy} className={btnDanger} onClick={() => start(async () => setDel(await deleteTransactionAction(values.id!)))}>
+            <button type="button" disabled={busy} className={btnDanger} onClick={() =>
+                start(async () => {
+                  if (toOutbox()) {
+                    await enqueue({ kind: "delete", id: values.id!, label: values.description });
+                    onDone();
+                  } else setDel(await deleteTransactionAction(values.id!));
+                })
+              }>
               yes, delete it
             </button>
           ) : (
