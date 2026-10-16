@@ -113,7 +113,7 @@ export function Nav() {
 export function NavShell({ path }: { path: string | null }) {
   return (
     <>
-      <nav aria-label="Main" className={pill}>
+      <nav aria-label="Main" className={pill} style={{ viewTransitionName: "nav-pill" }}>
         <Mark />
         <ul className="flex items-center gap-0.5">
           {[...links, settings].map((l) => {
@@ -152,7 +152,7 @@ export function NavShell({ path }: { path: string | null }) {
         </div>
       </header>
 
-      <nav aria-label="Main" className={tabs}>
+      <nav aria-label="Main" className={tabs} style={{ viewTransitionName: "nav-tabs" }}>
         {links.map((l) => {
           const on = active(path, l.href);
           return (

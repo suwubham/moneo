@@ -10,7 +10,9 @@ import type { ImportResult } from "@/lib/modules/imports/service";
 import { type CategoryColor, type CategoryIcon as IconKey, categoryColors, categoryIcons, lookOf } from "@/lib/modules/categories/look";
 import { CategoryIcon, colorVar, icons } from "../../_components/category-icon";
 import { Drawer } from "../../_components/drawer";
-import { addCategoryAction, currencyAction, deleteCategoryAction, deleteEverythingAction, importCashewAction, updateCategoryAction } from "./actions";
+import { ArrowUpDown } from "lucide-react";
+import { SortableList } from "../../_components/sortable-list";
+import { addCategoryAction, currencyAction, deleteCategoryAction, deleteEverythingAction, importCashewAction, reorderCategoriesAction, updateCategoryAction } from "./actions";
 
 export function CurrencyForm({ currency }: { currency: string }) {
   const [state, action] = useActionState(currencyAction, null);
@@ -213,5 +215,61 @@ function CategoryEditor({ category, onDone }: { category: Cat; onDone: () => voi
         <Submit className={btnPrimary}>Save category</Submit>
       </div>
     </form>
+  );
+}
+
+type OrderCat = Cat & { kind: "expense" | "income" };
+
+// Spending and income each keep their own order; both save together.
+export function ReorderCategories({ categories }: { categories: OrderCat[] }) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  if (categories.length < 2) return null;
+  return (
+    <>
+      <button type="button" className={btnSoft} onClick={() => setOpen(true)}>
+        <ArrowUpDown className="size-4" aria-hidden /> Reorder
+      </button>
+      <Drawer open={open} onClose={close} title="Reorder categories">
+        <CategoryOrder categories={categories} onDone={close} />
+      </Drawer>
+    </>
+  );
+}
+
+function CategoryOrder({ categories, onDone }: { categories: OrderCat[]; onDone: () => void }) {
+  const [spending, setSpending] = useState(categories.filter((c) => c.kind === "expense"));
+  const [income, setIncome] = useState(categories.filter((c) => c.kind === "income"));
+  const [state, setState] = useState<ActionState>(null);
+  const [busy, start] = useTransition();
+
+  useEffect(() => {
+    if (state?.ok) onDone();
+  }, [state, onDone]);
+
+  const order = [...spending, ...income];
+  const before = [...categories.filter((c) => c.kind === "expense"), ...categories.filter((c) => c.kind === "income")];
+  const changed = order.some((c, i) => c.id !== before[i].id);
+  const icon = (c: OrderCat) => <CategoryIcon category={c} size="sm" className="size-9" />;
+  return (
+    <div className="flex flex-col gap-6">
+      <p className="text-ink-soft">This order is used in the category pickers, filters and lists.</p>
+      <section>
+        <h3 className="label mb-2">spending</h3>
+        <SortableList items={spending} onChange={setSpending} render={icon} />
+      </section>
+      {income.length > 0 && (
+        <section>
+          <h3 className="label mb-2">income</h3>
+          <SortableList items={income} onChange={setIncome} render={icon} />
+        </section>
+      )}
+      <FormError state={state} />
+      <div>
+        <button type="button" className={btnPrimary} disabled={!changed || busy} onClick={() => start(async () => setState(await reorderCategoriesAction(order.map((c) => c.id))))}>
+          {busy ? "Saving…" : "Save order"}
+        </button>
+      </div>
+    </div>
   );
 }

@@ -147,3 +147,21 @@
 .cal .rdp-nav {
   gap: 0.35rem;
 }
+
+/* Fixed chrome rides above the page during route transitions and holds still, so the nav never blinks. */
+::view-transition-group(nav-pill),
+::view-transition-group(nav-tabs),
+::view-transition-group(scene-bar) {
+  z-index: 100;
+  animation: none;
+}
+::view-transition-old(nav-pill),
+::view-transition-old(nav-tabs),
+::view-transition-old(scene-bar) {
+  display: none;
+}
+::view-transition-new(nav-pill),
+::view-transition-new(nav-tabs),
+::view-transition-new(scene-bar) {
+  animation: none;
+}

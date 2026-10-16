@@ -101,34 +101,19 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
                     currency={profile.currency}
                     className={`${card} block w-full p-5 text-left transition-[translate,border-color] duration-300 ease-soft hover:-translate-y-0.5 hover:border-steel`}
                   >
-                    <span className="flex items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-3">
-                        {b.kind === "category" ? (
-                          <CategoryIcon category={b} />
-                        ) : (
-                          <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-night-3 text-scene">
-                            {b.kind === "total" ? <Wallet className="size-[1.15rem]" /> : <Flag className="size-[1.15rem]" />}
-                          </span>
-                        )}
-                        <span className="min-w-0">
-                          <span className="block truncate text-[1.15rem] font-bold">{b.name}</span>
-                          <span className="label">{b.kind === "total" ? "every category" : b.kind === "picked" ? "transactions you add" : "category"}</span>
+                    <span className="flex items-center gap-3">
+                      {b.kind === "category" ? (
+                        <CategoryIcon category={b} />
+                      ) : (
+                        <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-night-3 text-scene">
+                          {b.kind === "total" ? <Wallet className="size-[1.15rem]" /> : <Flag className="size-[1.15rem]" />}
                         </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[1.15rem] font-bold">{b.name}</span>
+                        <span className="label block truncate">{b.kind === "total" ? "every category" : b.kind === "picked" ? "transactions you add" : "category"}</span>
                       </span>
-                      <span className="flex shrink-0 flex-col items-end gap-1.5">
-                        <span className={`label ${wordTone[status]}`}>{words[status]}</span>
-                        <span className="block w-36">
-                          <MiniColumns
-                            data={history.map((h) => ({ key: h.key, label: h.label, value: h.spent }))}
-                            active={key}
-                            color="var(--chart-in)"
-                            name="spent"
-                            currency={profile.currency}
-                            limit={toNumber(b.amount)}
-                            height={56}
-                          />
-                        </span>
-                      </span>
+                      <span className={`label shrink-0 ${wordTone[status]}`}>{words[status]}</span>
                     </span>
                     <span className="relative mt-4 block h-2.5 overflow-hidden rounded-full bg-night">
                       <span
@@ -139,7 +124,7 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
                         <span aria-hidden className="absolute inset-y-0 w-px bg-ink/60" style={{ left: `${elapsed * 100}%` }} />
                       )}
                     </span>
-                    <span className="mt-3 flex items-baseline justify-between gap-3 text-[.95rem]">
+                    <span className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[.95rem]">
                       <span>
                         <Money value={b.spent} currency={profile.currency} className="font-semibold" />
                         <span className="text-ink-soft"> of </span>
@@ -148,6 +133,18 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
                       <span className={left < 0 ? "text-accent" : "text-ink-soft"}>
                         <Money value={Math.abs(left)} currency={profile.currency} /> {left < 0 ? "over" : "left"}
                       </span>
+                    </span>
+                    <span className="mt-4 block border-t border-line pt-3">
+                      <span className="label mb-1 block">last six months · the line is the limit</span>
+                      <MiniColumns
+                        data={history.map((h) => ({ key: h.key, label: h.label, value: h.spent }))}
+                        active={key}
+                        color="var(--chart-in)"
+                        name="spent"
+                        currency={profile.currency}
+                        limit={toNumber(b.amount)}
+                        height={64}
+                      />
                     </span>
                   </EditBudget>
                 </li>

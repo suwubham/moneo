@@ -6,7 +6,7 @@ import { SyncStatus } from "../_components/sync-status";
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <>
-      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 bg-scene" />
+      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 bg-scene" style={{ viewTransitionName: "scene-bar" }} />
       <Suspense fallback={<NavShell path={null} />}>
         <Nav />
       </Suspense>

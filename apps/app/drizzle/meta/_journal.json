@@ -22,6 +22,20 @@
       "when": 1792168883942,
       "tag": "0002_category_look",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792175381389,
+      "tag": "0003_account_look",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792175535198,
+      "tag": "0004_category_order",
+      "breakpoints": true
     }
   ]
 }

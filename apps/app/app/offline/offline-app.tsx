@@ -100,7 +100,7 @@ export function OfflineApp() {
             <ul className="flex flex-col divide-y divide-line">
               {accounts.map((a) => (
                 <li key={a.id} className="flex items-center gap-3 py-2.5">
-                  <AccountIcon kind={a.kind} className="size-9" />
+                  <AccountIcon kind={a.kind} icon={a.icon} color={a.color} className="size-9" />
                   <span className="min-w-0 flex-1 truncate font-semibold">{a.name}</span>
                   <span className="font-semibold tabular-nums">{formatMoney(a.balance, cur)}</span>
                 </li>

@@ -5,6 +5,7 @@ import { getAccounts } from "@/lib/modules/accounts/service";
 import { getPickedBudgets } from "@/lib/modules/budgets/service";
 import { getCategories } from "@/lib/modules/categories/service";
 import { PAGE_SIZE, getTotals, getTransactions } from "@/lib/modules/transactions/service";
+import { AccountIcon } from "../../_components/account-icon";
 import { Empty } from "../../_components/empty";
 import { Money } from "../../_components/money";
 import { MonthSwitch } from "../../_components/month-switch";
@@ -148,7 +149,7 @@ export async function TransactionsSection({
     <div className="mb-5 flex flex-col gap-4">
       {!lockAccount && live.length > 1 && (
         <nav aria-label="Accounts" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-          {[{ id: undefined, name: "All accounts" }, ...live].map((a) => {
+          {[{ id: undefined, name: "All accounts", kind: null, icon: null, color: null }, ...live].map((a) => {
             const on = s.account === a.id;
             return (
               <Link
@@ -158,6 +159,7 @@ export async function TransactionsSection({
                 aria-current={on ? "page" : undefined}
                 className={`${chip} ${on ? "border-scene bg-scene text-night" : "border-line bg-night-2 text-ink-soft hover:border-steel hover:text-ink"}`}
               >
+                {a.kind && <AccountIcon kind={a.kind} icon={a.icon} color={a.color} className="-ml-1.5 size-6 [&>svg]:size-3.5" />}
                 {a.name}
               </Link>
             );

@@ -7,7 +7,7 @@ import { type ActionState, parseForm, parseInput, runAction } from "@/lib/core/a
 import { requireUser } from "@/lib/core/auth";
 import { log } from "@/lib/core/log";
 import { currencies } from "@/lib/core/money";
-import { categoryCreate, categoryUpdate, createCategory, deleteCategory, updateCategory } from "@/lib/modules/categories/service";
+import { categoryCreate, categoryUpdate, createCategory, deleteCategory, reorderCategories, updateCategory } from "@/lib/modules/categories/service";
 import { type ImportResult, importCashew } from "@/lib/modules/imports/service";
 import { deleteAllData, setCurrency } from "@/lib/modules/profiles/service";
 
@@ -76,5 +76,13 @@ export async function importCashewAction(_: ActionState<ImportResult>, form: For
     const result = await importCashew(userId, new Uint8Array(await file.arrayBuffer()), tz);
     refresh();
     return result;
+  });
+}
+
+export async function reorderCategoriesAction(ids: string[]): Promise<ActionState> {
+  return runAction("reorder_categories", async () => {
+    const { id: userId } = await requireUser();
+    await reorderCategories(userId, parseInput(z.array(z.uuid()).max(500), ids));
+    refresh();
   });
 }

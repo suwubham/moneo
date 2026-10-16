@@ -71,7 +71,9 @@ function Legend({ series, line = false }: { series: Series[]; line?: boolean }) 
 // The same numbers as a table, for screen readers.
 function TableTwin({ caption, head, rows }: { caption: string; head: string[]; rows: (string | number)[][] }) {
   return (
-    <table className="sr-only">
+    // The wrapper hides it: a table will not shrink to sr-only's 1px and would widen the page.
+    <div className="sr-only">
+      <table>
       <caption>{caption}</caption>
       <thead>
         <tr>
@@ -90,6 +92,7 @@ function TableTwin({ caption, head, rows }: { caption: string; head: string[]; r
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -283,9 +286,21 @@ export function MiniColumns({
 }
 
 // A small area line for a tile, with the date and amount on hover and the two ends labelled.
-export function MiniTrend({ data, name, currency, height = 64 }: { data: MiniPoint[]; name: string; currency: string; height?: number }) {
+export function MiniTrend({
+  data,
+  name,
+  currency,
+  height = 64,
+  color = "var(--chart-in)",
+}: {
+  data: MiniPoint[];
+  name: string;
+  currency: string;
+  height?: number;
+  color?: string;
+}) {
   if (data.length < 2) return null;
-  const series: Series[] = [{ key: "value", label: name, color: "var(--chart-in)" }];
+  const series: Series[] = [{ key: "value", label: name, color }];
   const gid = `mt-${name.replace(/\W/g, "")}`;
   return (
     <div className="w-full">
@@ -294,8 +309,8 @@ export function MiniTrend({ data, name, currency, height = 64 }: { data: MiniPoi
           <AreaChart data={data} margin={{ top: 4, right: 2, left: 2, bottom: 0 }}>
             <defs>
               <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--chart-in)" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="var(--chart-in)" stopOpacity={0} />
+                <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
             <YAxis hide domain={["dataMin", "dataMax"]} />
@@ -307,7 +322,7 @@ export function MiniTrend({ data, name, currency, height = 64 }: { data: MiniPoi
             />
             <Area
               dataKey="value"
-              stroke="var(--chart-in)"
+              stroke={color}
               strokeWidth={2}
               fill={`url(#${gid})`}
               activeDot={{ r: 4, stroke: "var(--night-2)", strokeWidth: 2 }}

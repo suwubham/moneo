@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { id, timestamps } from "../../db/columns";
 import { profiles } from "../profiles/schema";
 
@@ -18,6 +18,8 @@ export const categories = pgTable(
     // Keys from look.ts. Null means "guess from the name".
     icon: text("icon"),
     color: text("color"),
+    // The person's own order within spending or income; ties fall back to the name.
+    position: integer("position").notNull().default(0),
     ...timestamps(),
   },
   (t) => [

@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { type ActionState, parseForm, parseInput, runAction } from "@/lib/core/action";
 import { requireUser } from "@/lib/core/auth";
-import { accountInput, createAccount, deleteAccount, setArchived, updateAccount } from "@/lib/modules/accounts/service";
+import { accountInput, createAccount, deleteAccount, reorderAccounts, setArchived, updateAccount } from "@/lib/modules/accounts/service";
 
 export async function saveAccountAction(_: ActionState, form: FormData): Promise<ActionState> {
   return runAction("save_account", async () => {
@@ -29,6 +29,14 @@ export async function deleteAccountAction(id: string): Promise<ActionState> {
   return runAction("delete_account", async () => {
     const { id: userId } = await requireUser();
     await deleteAccount(userId, parseInput(z.uuid(), id));
+    refresh();
+  });
+}
+
+export async function reorderAccountsAction(ids: string[]): Promise<ActionState> {
+  return runAction("reorder_accounts", async () => {
+    const { id: userId } = await requireUser();
+    await reorderAccounts(userId, parseInput(z.array(z.uuid()).max(200), ids));
     refresh();
   });
 }

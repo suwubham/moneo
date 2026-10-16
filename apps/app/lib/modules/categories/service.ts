@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AppError, notFound } from "@/lib/core/errors";
 import { getDb, type Tx, unitOfWork } from "@/lib/db";
 import { categoryColors, categoryIcons, guessLook } from "./look";
-import { findCategory, insertCategories, listCategories, patchCategory, removeCategory } from "./repository";
+import { findCategory, insertCategories, listCategories, patchCategory, removeCategory, setCategoryPositions } from "./repository";
 import { categoryKinds } from "./schema";
 
 const defaults = {
@@ -53,6 +53,17 @@ export async function updateCategory(userId: string, id: string, input: z.infer<
       }
       throw err;
     }
+  });
+}
+
+// Saves a new order for every category the person has. Spending and income keep their own order.
+export async function reorderCategories(userId: string, ids: string[]) {
+  await unitOfWork(async (tx) => {
+    const mine = new Set((await listCategories(tx, userId)).map((c) => c.id));
+    if (ids.length !== mine.size || new Set(ids).size !== ids.length || !ids.every((id) => mine.has(id))) {
+      throw new AppError(422, "bad_order", "That order does not match your categories. Reload and try again.");
+    }
+    await setCategoryPositions(tx, userId, ids);
   });
 }
 

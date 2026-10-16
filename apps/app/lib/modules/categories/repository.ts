@@ -7,7 +7,7 @@ export function listCategories(c: Conn, userId: string) {
     .select()
     .from(categories)
     .where(eq(categories.userId, userId))
-    .orderBy(asc(categories.kind), asc(categories.name));
+    .orderBy(asc(categories.kind), asc(categories.position), asc(categories.name));
 }
 
 export async function findCategory(c: Conn, userId: string, id: string) {
@@ -23,7 +23,14 @@ export async function insertCategories(
   c: Conn,
   rows: { userId: string; name: string; kind: CategoryKind; icon?: string | null; color?: string | null }[],
 ) {
-  return c.insert(categories).values(rows).onConflictDoNothing().returning();
+  if (rows.length === 0) return [];
+  // New categories go after the person's existing ones, in the order given.
+  const start = (userId: string) => sql`(select coalesce(max(${categories.position}) + 1, 0) from ${categories} where ${categories.userId} = ${userId})`;
+  return c
+    .insert(categories)
+    .values(rows.map((r, i) => ({ ...r, position: sql`${start(r.userId)} + ${i}` })))
+    .onConflictDoNothing()
+    .returning();
 }
 
 export async function patchCategory(c: Conn, userId: string, id: string, patch: { name: string; icon: string; color: string }) {
@@ -42,6 +49,15 @@ export async function fillLook(c: Conn, userId: string, rows: { name: string; ic
       .update(categories)
       .set({ icon: r.icon, color: r.color })
       .where(and(eq(categories.userId, userId), sql`lower(${categories.name}) = lower(${r.name})`, isNull(categories.icon)));
+  }
+}
+
+export async function setCategoryPositions(c: Conn, userId: string, ids: string[]) {
+  for (const [i, id] of ids.entries()) {
+    await c
+      .update(categories)
+      .set({ position: i })
+      .where(and(eq(categories.userId, userId), eq(categories.id, id)));
   }
 }
 

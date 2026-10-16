@@ -1,15 +1,19 @@
 import "server-only";
 import { z } from "zod";
-import { notFound } from "@/lib/core/errors";
+import { AppError, notFound } from "@/lib/core/errors";
 import { signedAmountInput } from "@/lib/core/money";
 import { getDb, type Tx, unitOfWork } from "@/lib/db";
-import { findAccount, insertAccount, listAccounts, patchAccount, removeAccount } from "./repository";
-import { accountKinds } from "./constants";
+import { categoryColors } from "@/lib/modules/categories/look";
+import { findAccount, insertAccount, listAccounts, patchAccount, removeAccount, setPositions } from "./repository";
+import { accountIcons, accountKinds } from "./constants";
 
 export const accountInput = z.object({
   name: z.string().trim().min(1, "Give it a name.").max(60),
   kind: z.enum(accountKinds),
   openingBalance: z.preprocess((v) => (v === "" || v == null ? "0" : v), signedAmountInput),
+  // Empty means "the default for the kind".
+  icon: z.preprocess((v) => (v === "" ? null : v), z.enum(accountIcons).nullable().optional()),
+  color: z.preprocess((v) => (v === "" ? null : v), z.enum(categoryColors).nullable().optional()),
 });
 
 export function getAccounts(userId: string) {
@@ -25,6 +29,17 @@ export async function updateAccount(userId: string, id: string, input: z.infer<t
     const row = await patchAccount(tx, userId, id, input);
     if (!row) throw notFound("account");
     return row;
+  });
+}
+
+// Saves the order the person dragged their accounts into. The list must be exactly their accounts.
+export async function reorderAccounts(userId: string, ids: string[]) {
+  await unitOfWork(async (tx) => {
+    const mine = new Set((await listAccounts(tx, userId)).map((a) => a.id));
+    if (ids.length !== mine.size || new Set(ids).size !== ids.length || !ids.every((id) => mine.has(id))) {
+      throw new AppError(422, "bad_order", "That order does not match your accounts. Reload and try again.");
+    }
+    await setPositions(tx, userId, ids);
   });
 }
 

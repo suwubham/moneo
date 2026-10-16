@@ -25,7 +25,7 @@ export async function getSnapshot(userId: string, currency: string) {
     currency,
     asOf: new Date().toISOString(),
     today,
-    accounts: accounts.map((a) => ({ id: a.id, name: a.name, kind: a.kind, balance: a.balance, archived: Boolean(a.archivedAt) })),
+    accounts: accounts.map((a) => ({ id: a.id, name: a.name, kind: a.kind, icon: a.icon, color: a.color, balance: a.balance, archived: Boolean(a.archivedAt) })),
     categories: categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind, icon: c.icon, color: c.color })),
     budgets: budgets.map((b) => ({ id: b.id, name: b.name, kind: b.kind, categoryId: b.categoryId, amount: b.amount, spent: b.spent })),
     picked,

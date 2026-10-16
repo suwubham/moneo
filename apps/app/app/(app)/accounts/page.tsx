@@ -4,10 +4,12 @@ import { Pencil } from "lucide-react";
 import { requireProfile } from "@/lib/core/auth";
 import { todayIso } from "@/lib/core/dates";
 import { toNumber } from "@/lib/core/money";
-import { kindLabels } from "@/lib/modules/accounts/constants";
+import { accountLook, kindLabels } from "@/lib/modules/accounts/constants";
+import { categoryColors } from "@/lib/modules/categories/look";
 import { getAccounts } from "@/lib/modules/accounts/service";
 import { getBalanceHistory } from "@/lib/modules/reports/service";
 import { AccountIcon } from "../../_components/account-icon";
+import { colorVar } from "../../_components/category-icon";
 import { MiniTrend } from "../../_components/charts";
 import { CountUp } from "../../_components/count-up";
 import { Empty } from "../../_components/empty";
@@ -17,6 +19,7 @@ import { Reveal } from "../../_components/reveal";
 import { Skeleton } from "../../_components/skeleton";
 import { badge, btn, btnPrimary } from "../../_components/styles";
 import { EditAccountButton, NewAccountButton } from "./account-drawers";
+import { ReorderAccounts } from "./reorder";
 
 export const metadata: Metadata = { title: "Accounts" };
 
@@ -69,9 +72,12 @@ async function Accounts() {
 
   return (
     <div className="flex flex-col gap-8">
-      <p className="label">
-        {live.length} active · net <Money value={total} currency={profile.currency} className="text-ink" />
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="label">
+          {live.length} active · net <Money value={total} currency={profile.currency} className="text-ink" />
+        </p>
+        <ReorderAccounts accounts={live.map((a) => ({ id: a.id, name: a.name, kind: a.kind, icon: a.icon, color: a.color }))} />
+      </div>
       <ul className="rise grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
         {live.map((a, i) => (
           <li key={a.id} className="relative" style={{ "--i": i } as React.CSSProperties}>
@@ -81,13 +87,14 @@ async function Accounts() {
             >
               <span aria-hidden className="blob blob-a -right-28 -bottom-36 w-72 opacity-15 blur-xl" />
               <span className="flex items-center gap-3 pr-10">
-                <AccountIcon kind={a.kind} />
+                <AccountIcon kind={a.kind} icon={a.icon} color={a.color} />
                 <span className="min-w-0">
                   <span className="block truncate text-[1.2rem] leading-tight font-bold tracking-[-0.02em]">{a.name}</span>
                   <span className={`${badge} mt-1`}>{kindLabels[a.kind]}</span>
                 </span>
               </span>
               <MiniTrend
+                color={colorVar(accountLook(a, categoryColors).color as (typeof categoryColors)[number])}
                 name={a.name}
                 currency={profile.currency}
                 height={56}
@@ -104,7 +111,7 @@ async function Accounts() {
               </span>
             </Link>
             <EditAccountButton
-              account={{ id: a.id, name: a.name, kind: a.kind, openingBalance: a.openingBalance, archived: false }}
+              account={{ id: a.id, name: a.name, kind: a.kind, openingBalance: a.openingBalance, archived: false, icon: a.icon, color: a.color }}
               className={editBtn}
             >
               <Pencil className="size-4" aria-hidden />

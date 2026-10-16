@@ -88,7 +88,7 @@ async function Account({ params, searchParams }: Pick<PageProps<"/accounts/[id]"
     <div className="flex flex-col gap-6">
       <header className="rise-1 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <AccountIcon kind={account.kind} className="size-12" />
+          <AccountIcon kind={account.kind} icon={account.icon} color={account.color} className="size-12" />
           <div>
             <h1 className="text-[clamp(1.8rem,4vw,2.6rem)] leading-none font-extrabold tracking-[-0.045em]">{account.name}</h1>
             <p className="mt-1.5 flex items-center gap-2">
@@ -101,7 +101,15 @@ async function Account({ params, searchParams }: Pick<PageProps<"/accounts/[id]"
           </div>
         </div>
         <EditAccountButton
-          account={{ id: account.id, name: account.name, kind: account.kind, openingBalance: account.openingBalance, archived: Boolean(account.archivedAt) }}
+          account={{
+            id: account.id,
+            name: account.name,
+            kind: account.kind,
+            openingBalance: account.openingBalance,
+            archived: Boolean(account.archivedAt),
+            icon: account.icon,
+            color: account.color,
+          }}
           className={btn}
         >
           <Pencil className="size-3.5" aria-hidden /> edit

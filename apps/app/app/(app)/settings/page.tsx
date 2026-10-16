@@ -6,7 +6,7 @@ import { PageTitle } from "../../_components/page-title";
 import { Reveal } from "../../_components/reveal";
 import { ListSkeleton } from "../../_components/skeleton";
 import { card } from "../../_components/styles";
-import { AddCategory, CategoryChip, CurrencyForm, DeleteEverything, ImportCashew } from "./settings-ui";
+import { AddCategory, CategoryChip, CurrencyForm, DeleteEverything, ImportCashew, ReorderCategories } from "./settings-ui";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -36,9 +36,12 @@ async function Settings() {
     <div className="rise grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
       <div style={{ "--i": 0 } as React.CSSProperties}>
         <section className={section} aria-labelledby="cats">
-          <h2 id="cats" className={heading}>
-            Categories
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="cats" className={heading}>
+              Categories
+            </h2>
+            <ReorderCategories categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind, icon: c.icon, color: c.color }))} />
+          </div>
           <p className="mb-5 text-ink-soft">Tap one to change its name, icon or colour. Removing one leaves its transactions uncategorised and removes its budget.</p>
           {groups.map((g) => (
             <div key={g.title} className="mb-5">
