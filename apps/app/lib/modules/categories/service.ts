@@ -2,7 +2,8 @@ import "server-only";
 import { z } from "zod";
 import { AppError, notFound } from "@/lib/core/errors";
 import { getDb, type Tx, unitOfWork } from "@/lib/db";
-import { findCategory, insertCategories, listCategories, removeCategory } from "./repository";
+import { categoryColors, categoryIcons, guessLook } from "./look";
+import { findCategory, insertCategories, listCategories, patchCategory, removeCategory } from "./repository";
 import { categoryKinds } from "./schema";
 
 const defaults = {
@@ -12,8 +13,8 @@ const defaults = {
 
 export async function seedDefaultCategories(tx: Tx, userId: string) {
   await insertCategories(tx, [
-    ...defaults.expense.map((name) => ({ userId, name, kind: "expense" as const })),
-    ...defaults.income.map((name) => ({ userId, name, kind: "income" as const })),
+    ...defaults.expense.map((name) => ({ userId, name, kind: "expense" as const, ...guessLook(name) })),
+    ...defaults.income.map((name) => ({ userId, name, kind: "income" as const, ...guessLook(name) })),
   ]);
 }
 
@@ -22,15 +23,36 @@ export const categoryCreate = z.object({
   kind: z.enum(categoryKinds),
 });
 
+export const categoryUpdate = z.object({
+  name: z.string().trim().min(1, "Give it a name.").max(40),
+  icon: z.enum(categoryIcons),
+  color: z.enum(categoryColors),
+});
+
 export function getCategories(userId: string) {
   return listCategories(getDb(), userId);
 }
 
 export async function createCategory(userId: string, input: z.infer<typeof categoryCreate>) {
   return unitOfWork(async (tx) => {
-    const [row] = await insertCategories(tx, [{ userId, ...input }]);
+    const [row] = await insertCategories(tx, [{ userId, ...input, ...guessLook(input.name) }]);
     if (!row) throw new AppError(409, "category_exists", "You already have a category with that name.");
     return row;
+  });
+}
+
+export async function updateCategory(userId: string, id: string, input: z.infer<typeof categoryUpdate>) {
+  return unitOfWork(async (tx) => {
+    try {
+      const row = await patchCategory(tx, userId, id, input);
+      if (!row) throw notFound("category");
+      return row;
+    } catch (err) {
+      if ((err as { cause?: { code?: string } }).cause?.code === "23505") {
+        throw new AppError(409, "category_exists", "You already have a category with that name.");
+      }
+      throw err;
+    }
   });
 }
 

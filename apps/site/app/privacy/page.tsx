@@ -48,6 +48,11 @@ export default function Privacy() {
             <li className={li}>a few settings, like your currency</li>
           </ul>
 
+          <p className={p}>
+            If you import a Cashew backup, our server reads the file once, keeps its wallets, categories and
+            transactions as listed above, and deletes the file straight away.
+          </p>
+
           <h2 className={h2}>Signing in</h2>
           <p className={p}>
             Sign-in is handled by Clerk. Clerk holds your email address and login details. Moneo keeps only the user id

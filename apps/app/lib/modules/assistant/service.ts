@@ -7,6 +7,7 @@ import { notFound, rateLimited } from "@/lib/core/errors";
 import { log } from "@/lib/core/log";
 import { getDb, unitOfWork } from "@/lib/db";
 import { GraphRecursionError } from "@langchain/langgraph";
+import { visibleText } from "@/lib/modules/ai/text";
 import { buildAssistantGraph } from "./graph";
 import {
   countUserMessagesSince,
@@ -81,12 +82,6 @@ async function finishTurn(userId: string, conversationId: string, content: strin
   });
 }
 
-function textOf(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content))
-    return content.map((p) => (p && typeof p === "object" && "type" in p && p.type === "text" && "text" in p ? String(p.text) : "")).join("");
-  return "";
-}
 
 // Streams one assistant turn. History is replayed as plain text; tool results are not stored, the model re-asks.
 export async function* streamReply(
@@ -118,7 +113,7 @@ export async function* streamReply(
             yield { t: "tool", name: call.name, state: "start" };
           }
         }
-        const delta = textOf(chunk.content);
+        const delta = visibleText(chunk.content);
         if (delta) {
           text += delta;
           yield { t: "text", v: delta };

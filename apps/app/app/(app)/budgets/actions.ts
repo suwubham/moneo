@@ -6,12 +6,14 @@ import { type ActionState, parseForm, parseInput, runAction } from "@/lib/core/a
 import { requireUser } from "@/lib/core/auth";
 import { currentMonth } from "@/lib/core/dates";
 import { type BudgetSuggestion, suggestBudgets } from "@/lib/modules/ai/budget-suggest";
-import { budgetInput, deleteBudget, saveBudget } from "@/lib/modules/budgets/service";
+import { budgetInput, budgetUpdate, deleteBudget, saveBudget, updateBudget } from "@/lib/modules/budgets/service";
 
 export async function saveBudgetAction(_: ActionState, form: FormData): Promise<ActionState> {
   return runAction("save_budget", async () => {
     const { id: userId } = await requireUser();
-    await saveBudget(userId, parseForm(budgetInput, form));
+    const id = form.get("id");
+    if (typeof id === "string" && id) await updateBudget(userId, parseInput(z.uuid(), id), parseForm(budgetUpdate, form));
+    else await saveBudget(userId, parseForm(budgetInput, form));
     refresh();
   });
 }
@@ -19,7 +21,7 @@ export async function saveBudgetAction(_: ActionState, form: FormData): Promise<
 export async function acceptSuggestionAction(categoryId: string, amount: string): Promise<ActionState> {
   return runAction("accept_budget_suggestion", async () => {
     const { id: userId } = await requireUser();
-    await saveBudget(userId, parseInput(budgetInput, { categoryId, amount }));
+    await saveBudget(userId, parseInput(budgetInput, { kind: "category", categoryId, amount }));
     refresh();
   });
 }

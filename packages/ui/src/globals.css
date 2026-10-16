@@ -18,6 +18,19 @@
 
   --grain-op: 0.05;
   --scene: var(--accent);
+
+  /* Data colours, validated for colour-blind separation on night-2 (see the dataviz checks). */
+  --chart-in: #3987e5;
+  --chart-out: #d95926;
+  --steel-wash: #164057;
+  --cat-blue: #3987e5;
+  --cat-orange: #d95926;
+  --cat-aqua: #199e70;
+  --cat-yellow: #c98500;
+  --cat-magenta: #d55181;
+  --cat-green: #2f9a2f;
+  --cat-violet: #9085e9;
+  --cat-red: #e66767;
   color-scheme: dark;
 }
 
@@ -36,6 +49,17 @@
     --amber: #780000;
     --on-accent: #fdf0d5;
     --grain-op: 0.06;
+    --chart-in: #2a78d6;
+    --chart-out: #c4521f;
+    --steel-wash: #cac8b3;
+    --cat-blue: #2a78d6;
+    --cat-orange: #c4521f;
+    --cat-aqua: #12855c;
+    --cat-yellow: #a66f00;
+    --cat-magenta: #c2457a;
+    --cat-green: #008300;
+    --cat-violet: #6250d6;
+    --cat-red: #d03a3a;
     color-scheme: light;
   }
 }
@@ -53,6 +77,17 @@
   --amber: #780000;
   --on-accent: #fdf0d5;
   --grain-op: 0.06;
+  --chart-in: #2a78d6;
+  --chart-out: #c4521f;
+  --steel-wash: #cac8b3;
+  --cat-blue: #2a78d6;
+  --cat-orange: #c4521f;
+  --cat-aqua: #12855c;
+  --cat-yellow: #a66f00;
+  --cat-magenta: #c2457a;
+  --cat-green: #008300;
+  --cat-violet: #6250d6;
+  --cat-red: #d03a3a;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -98,6 +133,8 @@ body[data-scene="steel"] {
   --color-on-accent: var(--on-accent);
   --color-crimson: var(--crimson);
   --color-scene: var(--scene);
+  --color-chart-in: var(--chart-in);
+  --color-chart-out: var(--chart-out);
 
   --font-grot: var(--font-bricolage), "Helvetica Neue", Arial, system-ui, sans-serif;
   --font-fancy: var(--font-fraunces), "Iowan Old Style", Georgia, serif;

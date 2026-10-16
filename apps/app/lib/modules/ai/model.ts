@@ -11,8 +11,7 @@ export function chatModel(opts: { temperature?: number } = {}) {
     platformType: "gcp",
     location: settings.gcpLocation,
     temperature: opts.temperature ?? 0.2,
-    // Low thinking keeps answers quick; the tools do the real work.
-    reasoningEffort: "low",
+    // No reasoningEffort: setting one makes LangChain request thought summaries (includeThoughts).
     maxRetries: 2,
     ...(settings.googleCredentialsJson
       ? { credentials: settings.googleCredentialsJson }

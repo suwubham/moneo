@@ -4,6 +4,7 @@ import { notFound } from "@/lib/core/errors";
 import { amountInput, withSign } from "@/lib/core/money";
 import { getDb, unitOfWork } from "@/lib/db";
 import { assertAccount } from "@/lib/modules/accounts/service";
+import { assertPickedBudget } from "@/lib/modules/budgets/service";
 import { assertCategory } from "@/lib/modules/categories/service";
 import { type TxFilter, insertTransaction, listTransactions, patchTransaction, removeTransaction, totals } from "./repository";
 
@@ -17,9 +18,13 @@ export const transactionInput = z.object({
   occurredOn: z.iso.date("Pick a date."),
   description: z.string().trim().min(1, "Say what it was.").max(140),
   note: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(500).nullable()),
+  budgetId: optionalId,
+  // A checkbox: "on" when ticked, missing when not.
+  excludeFromBudgets: z.preprocess((v) => v === true || v === "on" || v === "true", z.boolean()),
 });
 
-export type TransactionInput = z.infer<typeof transactionInput>;
+type Parsed = z.infer<typeof transactionInput>;
+export type TransactionInput = Omit<Parsed, "budgetId" | "excludeFromBudgets"> & Partial<Pick<Parsed, "budgetId" | "excludeFromBudgets">>;
 
 export const PAGE_SIZE = 50;
 
@@ -32,14 +37,15 @@ export function getTotals(userId: string, filter: TxFilter) {
 }
 
 function toRow(input: TransactionInput) {
-  const { direction, amount, ...rest } = input;
-  return { ...rest, amount: withSign(amount, direction) };
+  const { direction, amount, budgetId = null, excludeFromBudgets = false, ...rest } = input;
+  return { ...rest, budgetId, excludeFromBudgets, amount: withSign(amount, direction) };
 }
 
 export async function createTransaction(userId: string, input: TransactionInput) {
   return unitOfWork(async (tx) => {
     await assertAccount(userId, input.accountId, tx);
     await assertCategory(userId, input.categoryId, tx);
+    await assertPickedBudget(userId, input.budgetId, tx);
     return insertTransaction(tx, { userId, ...toRow(input) });
   });
 }
@@ -48,6 +54,7 @@ export async function updateTransaction(userId: string, id: string, input: Trans
   return unitOfWork(async (tx) => {
     await assertAccount(userId, input.accountId, tx);
     await assertCategory(userId, input.categoryId, tx);
+    await assertPickedBudget(userId, input.budgetId, tx);
     const row = await patchTransaction(tx, userId, id, toRow(input));
     if (!row) throw notFound("transaction");
     return row;

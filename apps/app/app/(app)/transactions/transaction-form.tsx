@@ -2,12 +2,13 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
+import { CategoryIcon } from "../../_components/category-icon";
 import { Field, FormError, Submit } from "../../_components/form";
 import { btn, btnDanger, btnPrimary, control, input, textarea } from "../../_components/styles";
 import { deleteTransactionAction, saveTransactionAction } from "./actions";
 
 export type Option = { id: string; name: string };
-export type CategoryOption = Option & { kind: "expense" | "income" };
+export type CategoryOption = Option & { kind: "expense" | "income"; icon?: string | null; color?: string | null };
 
 export type TxValues = {
   id?: string;
@@ -18,6 +19,8 @@ export type TxValues = {
   accountId: string | null;
   categoryId: string | null;
   note: string | null;
+  budgetId?: string | null;
+  excludeFromBudgets?: boolean;
 };
 
 const seg = "flex-1 rounded-full px-4 py-2 text-center font-mono text-[.8rem] transition-colors duration-300 ease-soft";
@@ -26,11 +29,13 @@ export function TransactionForm({
   values,
   accounts,
   categories,
+  budgets,
   onDone,
 }: {
   values: TxValues;
   accounts: Option[];
   categories: CategoryOption[];
+  budgets: Option[];
   onDone: () => void;
 }) {
   const [state, action] = useActionState(saveTransactionAction, null);
@@ -90,22 +95,45 @@ export function TransactionForm({
           </select>
         </Field>
       </div>
-      <Field label="category" name="categoryId" state={state}>
-        <select
-          id="categoryId"
-          name="categoryId"
-          key={kind}
-          defaultValue={shown.some((c) => c.id === values.categoryId) ? (values.categoryId ?? "") : ""}
-          className={input}
-        >
-          <option value="">Uncategorised</option>
-          {shown.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
+      <fieldset key={kind}>
+        <legend className="label mb-2">category</legend>
+        <div className="flex max-h-48 flex-wrap gap-1.5 overflow-y-auto pr-1">
+          {[null, ...shown].map((c) => (
+            <label
+              key={c?.id ?? "none"}
+              className="flex cursor-pointer items-center gap-2 rounded-full border border-line bg-night py-1 pr-3 pl-1 text-[.88rem] text-ink-soft transition-colors duration-200 ease-soft hover:border-steel has-checked:border-ink has-checked:text-ink"
+            >
+              <input
+                type="radio"
+                name="categoryId"
+                value={c?.id ?? ""}
+                defaultChecked={c ? c.id === values.categoryId : !shown.some((x) => x.id === values.categoryId)}
+                className="sr-only"
+              />
+              <CategoryIcon category={c} size="sm" />
+              {c?.name ?? "None"}
+            </label>
           ))}
-        </select>
-      </Field>
+        </div>
+      </fieldset>
+      {budgets.length > 0 ? (
+        <Field label="budget" name="budgetId" state={state} hint="Only for budgets that count the transactions you add.">
+          <select id="budgetId" name="budgetId" defaultValue={values.budgetId ?? ""} className={input}>
+            <option value="">None</option>
+            {budgets.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : (
+        values.budgetId && <input type="hidden" name="budgetId" value={values.budgetId} />
+      )}
+      <label className="flex cursor-pointer items-center gap-2.5 text-[.95rem] text-ink-soft">
+        <input type="checkbox" name="excludeFromBudgets" defaultChecked={values.excludeFromBudgets} className="size-4 accent-steel" />
+        Leave out of category and total budgets (for example, a transfer between your accounts)
+      </label>
       <Field label="note" name="note" state={state}>
         <textarea id="note" name="note" rows={2} maxLength={500} defaultValue={values.note ?? ""} className={textarea} />
       </Field>
