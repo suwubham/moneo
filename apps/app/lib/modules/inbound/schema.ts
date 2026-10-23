@@ -34,7 +34,7 @@ export const inboxHints = pgTable(
 // - added: became a transaction
 // - review: the model's reading did not pass every check, so it waits for the person, already filled in
 // - unread: not a transaction (a statement, an offer, a code)
-// - code: Gmail's forwarding confirmation, holding the code to paste back into Gmail
+// - code: Gmail's forwarding check, holding its confirm link (or, in older emails, a code to paste back into Gmail)
 // - dismissed: the person put it away
 export const inboxEmailStatuses = ["added", "review", "unread", "code", "dismissed"] as const;
 export type InboxEmailStatus = (typeof inboxEmailStatuses)[number];

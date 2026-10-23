@@ -63,10 +63,17 @@ export function settleDraft(
   };
 }
 
-// Gmail sends a code to a new forwarding address before it forwards anything. The person pastes it back into Gmail.
+// Gmail checks a new forwarding address before it forwards anything. It now sends a link to confirm with; older
+// emails carried a code to paste back into Gmail. Returns the link, or the code. Only Gmail's own confirm link is
+// taken, since anyone who knows the address can send mail that claims to be from Google.
 export function gmailForwardingCode(from: string | null | undefined, subject: string | null | undefined, text: string): string | null {
   if (!from?.toLowerCase().includes("forwarding-noreply@google.com")) return null;
-  return /confirmation code:\s*(\d{6,})/i.exec(text)?.[1] ?? /\(#(\d{6,})\)/.exec(subject ?? "")?.[1] ?? null;
+  return (
+    /https:\/\/mail\.google\.com\/mail\/vf-[^\s<>"']+/.exec(text)?.[0] ??
+    /confirmation code:\s*(\d{6,})/i.exec(text)?.[1] ??
+    /\(#(\d{6,})\)/.exec(subject ?? "")?.[1] ??
+    null
+  );
 }
 
 const entities: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };

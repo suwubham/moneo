@@ -64,7 +64,14 @@ describe("checking the model's reading", () => {
 });
 
 describe("email helpers", () => {
-  test("finds Gmail's forwarding code only in Gmail's email", () => {
+  test("finds Gmail's confirm link, not the cancel link", () => {
+    const link = "https://mail.google.com/mail/vf-%5BABC_def-123%5D-xyz";
+    const text = `please click the link below to confirm the request:\n\n${link}\n\nto cancel this verification:\nhttps://mail.google.com/mail/uf-%5BNOPE%5D`;
+    assert.equal(gmailForwardingCode("forwarding-noreply@google.com", "(Gmail Forwarding Confirmation - Receive Mail from someone", text), link);
+    assert.equal(gmailForwardingCode("forwarding-noreply@google.com", "Gmail Forwarding Confirmation", "https://evil.example/mail/vf-x"), null);
+  });
+
+  test("finds Gmail's older forwarding code only in Gmail's email", () => {
     const text = "Confirmation code: 123456789\nTo allow forwarding, click the link below.";
     assert.equal(gmailForwardingCode("Gmail Team <forwarding-noreply@google.com>", "(#123456789) Gmail Forwarding Confirmation", text), "123456789");
     assert.equal(gmailForwardingCode("forwarding-noreply@google.com", "(#987654321) Gmail Forwarding Confirmation", "no code here"), "987654321");

@@ -75,7 +75,19 @@ export function Address({ address }: { address: string | null }) {
   );
 }
 
+// Gmail now sends a link to confirm a new forwarding address; older emails carried a code to paste back.
 export function ForwardCode({ code }: { code: string }) {
+  if (code.startsWith("https://mail.google.com/mail/vf-")) {
+    return (
+      <div role="status" className="flex flex-col items-start gap-2 rounded-lg border border-line bg-night px-3.5 py-3 text-[.92rem]">
+        <span>Gmail wants to check this address before it forwards anything.</span>
+        <a href={code} target="_blank" rel="noreferrer" className={btnSoft}>
+          Confirm forwarding in Gmail
+        </a>
+        <span className="text-ink-soft">Open it while signed in to the Gmail account that forwards here.</span>
+      </div>
+    );
+  }
   return (
     <p role="status" className="rounded-lg border border-line bg-night px-3.5 py-2.5 text-[.92rem]">
       Gmail&apos;s confirmation code: <code className="font-mono font-bold tracking-wide">{code}</code>
@@ -164,7 +176,7 @@ const statusText: Record<Email["status"], string> = {
   added: "added",
   review: "needs you",
   unread: "not a transaction",
-  code: "gmail code",
+  code: "gmail check",
   dismissed: "dismissed",
 };
 
