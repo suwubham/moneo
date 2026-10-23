@@ -32,6 +32,8 @@ export const messages = pgTable(
     role: text("role", { enum: messageRoles }).notNull(),
     content: text("content").notNull(),
     tools: jsonb("tools").$type<string[]>().notNull().default([]),
+    // One line per data file this turn saved to the chat's sandbox, so later turns know what is there.
+    data: jsonb("data").$type<string[]>().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

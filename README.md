@@ -59,6 +59,10 @@ Other commands: `npm run db:migrate`, `npm run db:studio`, `npm test` (unit test
 | `APP_AI_HOURLY_LIMIT` | app | Chat messages per user per hour in production. Default 60. |
 | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` | app | Resend receiving, for bank emails. The key reads received emails; the secret checks webhook signatures. |
 | `APP_INBOUND_DOMAIN` | app | Domain of inbox addresses, e.g. `<id>.resend.app`. Empty (or either Resend value, or `GOOGLE_CLOUD_PROJECT`, empty) turns bank emails off. |
+| `APP_SANDBOX` | app | `on` lets the assistant make charts, reports and widgets. Also needs the assistant and all `APP_R2_*` values. |
+| `APP_SANDBOX_HOURLY_LIMIT` | app | Files the assistant may make per user per hour in production. Default 20. |
+| `APP_R2_ACCOUNT_ID`, `APP_R2_ACCESS_KEY_ID`, `APP_R2_SECRET_ACCESS_KEY`, `APP_R2_BUCKET` | app | Cloudflare R2 bucket (`moneo`) for those files. The key can only read and write that bucket. |
+| `VERCEL_OIDC_TOKEN` | app | Signs in to Vercel Sandbox. Set by Vercel on deploys; `vercel env pull` writes a 12-hour one locally. |
 | `APP_SITE_URL` | both | Landing page URL. The app sends people here after sign out. |
 | `APP_WEB_URL` | both | App URL. The landing page links here to sign in and sign up. |
 
@@ -69,7 +73,7 @@ Other commands: `npm run db:migrate`, `npm run db:studio`, `npm test` (unit test
 - **Month read** (Overview): a few sentences about the month, written from totals only.
 - **Budget suggestions** (Budgets): limits based on the last three months. Nothing is saved until you add one.
 
-The sandbox for maths and charts will be another node next to `tools` in `lib/modules/assistant/graph.ts`.
+- **Charts and files** (in the assistant): the data tools take `save_to_sandbox: true`, which writes their full result (up to 5,000 rows, no descriptions or notes) into the chat's own Vercel Sandbox (`chat-<conversationId>`, region `sin1`, no internet). `make_files` then runs the model's Python script there and keeps up to 3 `.html`, `.csv` or `.json` files from `out/`. Files go to R2 under `u/<userId>/c/<conversationId>/` with a row in `assistant_files`, and download through `GET /api/files/[id]`. Pages show in an `<iframe sandbox="allow-scripts">` with a no-network Content-Security-Policy. The sandbox stops after each turn and keeps `data/` for follow-ups; its saved copy expires after 7 days. Deleting a chat or the account deletes both. Code is in `lib/modules/files/`.
 
 ## Bank emails
 

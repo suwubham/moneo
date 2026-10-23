@@ -5,3 +5,4 @@ export * from "../modules/transactions/schema";
 export * from "../modules/budgets/schema";
 export * from "../modules/assistant/schema";
 export * from "../modules/inbound/schema";
+export * from "../modules/files/schema";

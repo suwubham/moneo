@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ChatEvent } from "@/lib/modules/assistant/service";
+import type { FileMeta } from "@/lib/modules/files/service";
+import { FileCard } from "./file-card";
 import { Markdown } from "./markdown";
 
-type Msg = { id: string; role: "user" | "assistant"; content: string; tools: string[]; live?: boolean; failed?: string };
+type Msg = { id: string; role: "user" | "assistant"; content: string; tools: string[]; files?: FileMeta[]; live?: boolean; failed?: string };
 
 const toolWords: Record<string, string> = {
   list_accounts: "checked accounts",
@@ -14,6 +16,7 @@ const toolWords: Record<string, string> = {
   spending_by_category: "added up categories",
   monthly_cash_flow: "looked at cash flow",
   budget_status: "checked budgets",
+  make_files: "made a file",
 };
 
 const starters = [
@@ -92,6 +95,8 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
             patchLast((m) => ({ ...m, content: m.content + ev.v }));
           } else if (ev.t === "tool" && ev.state === "start") {
             patchLast((m) => ({ ...m, tools: m.tools.includes(ev.name) ? m.tools : [...m.tools, ev.name] }));
+          } else if (ev.t === "file") {
+            patchLast((m) => ({ ...m, files: [...(m.files ?? []), ev.file] }));
           } else if (ev.t === "error") {
             patchLast((m) => ({ ...m, failed: ev.error.message }));
           }
@@ -149,6 +154,7 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
                       <Markdown text={m.content} />
                       {m.live && m.content && <span className="caret" aria-hidden />}
                     </div>
+                    {m.files?.map((f) => <FileCard key={f.id} file={f} />)}
                     {m.failed && <p className="mt-2 text-[.9rem] text-accent">{m.failed}</p>}
                   </div>
                 )}

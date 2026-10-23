@@ -82,6 +82,13 @@ export default function Privacy() {
             message and the financial data needed to answer it to Google Cloud&apos;s Vertex AI, where a Gemini model writes the answer and
             we show it to you. We only send what that feature needs, not your whole history at once.
           </p>
+          <p className={p}>
+            When you ask the assistant for a chart, a downloadable file or an interactive widget, the data it needs is copied
+            to a private, isolated computer at Vercel Sandbox (in Singapore) that has no internet access, and a short script
+            made by the model turns it into the file. That copy holds dates, amounts and which account, category and budget each
+            transaction belongs to, never your descriptions or notes. It is kept for up to 7 days so follow-up requests in the
+            same chat can use it. The files made are stored in Cloudflare R2. Deleting the chat or your account deletes both.
+          </p>
 
           <h2 className={h2}>What we don&apos;t do</h2>
           <ul className="mt-4 flex list-disc flex-col gap-2 pl-5 marker:text-ash">
