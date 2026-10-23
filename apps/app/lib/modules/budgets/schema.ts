@@ -34,3 +34,30 @@ export const budgets = pgTable(
 );
 
 export type Budget = typeof budgets.$inferSelect;
+
+// A budget's limit over time. A row says "from this month on, the limit is this", so past months keep the limit
+// they were judged against. Rows appear only once a limit changes; until then budgets.amount covers every month.
+// The first change also writes the old amount from BASE_MONTH, so the months before it keep their limit.
+export const BASE_MONTH = "0001-01";
+
+export const budgetLimits = pgTable(
+  "budget_limits",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    budgetId: uuid("budget_id")
+      .notNull()
+      .references(() => budgets.id, { onDelete: "cascade" }),
+    // "YYYY-MM": the first month this limit applies to.
+    fromMonth: text("from_month").notNull(),
+    amount: money("amount").notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    index("ix_budget_limits_user").on(t.userId),
+    uniqueIndex("uq_budget_limits_budget_month").on(t.budgetId, t.fromMonth),
+    check("ck_budget_limits_month", sql`${t.fromMonth} ~ '^[0-9]{4}-[0-9]{2}$'`),
+  ],
+);

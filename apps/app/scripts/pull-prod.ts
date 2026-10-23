@@ -11,7 +11,7 @@ import postgres from "postgres";
 import { hostOf } from "../lib/db/migrate";
 
 // Parents before children; deleting the local profile clears the rest through its cascades.
-const TABLES = ["profiles", "accounts", "categories", "budgets", "transactions", "conversations", "messages"] as const;
+const TABLES = ["profiles", "accounts", "categories", "budgets", "budget_limits", "transactions", "conversations", "messages"] as const;
 
 function env(file: string) {
   return parseEnv(readFileSync(file, "utf8")) as Record<string, string | undefined>;

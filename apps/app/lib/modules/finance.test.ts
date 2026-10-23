@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { monthOf } from "@/lib/core/dates";
+import { currentMonth, monthOf, shiftMonth } from "@/lib/core/dates";
 import type { AppError } from "@/lib/core/errors";
 import { balanceSplit } from "./accounts/constants";
 import { createAccount, getAccounts, updateAccount } from "./accounts/service";
-import { getBudgetProgress, saveBudget, statusOf, updateBudget } from "./budgets/service";
+import { getBudgetHistory, getBudgetProgress, saveBudget, statusOf, updateBudget } from "./budgets/service";
 import { getCategories } from "./categories/service";
 import { deleteAllData, getProfile } from "./profiles/service";
 import { getMonthlyFlow, getSpendingByCategory } from "./reports/service";
@@ -245,6 +245,38 @@ describe("finance modules against Postgres", { skip: !hasDb && "no DATABASE_URL"
     assert.deepEqual(linked.map((r) => r.amount).sort(), ["-20000.00", "20000.00"]);
     assert.ok(linked.every((r) => r.excludeFromBudgets));
     assert.equal((await getTransactions(id, { direction: "in" }, { limit: 10, offset: 0 })).length, 3);
+    await deleteAllData(id);
+  });
+
+  test("changing a limit counts from this month on; past months keep theirs", async () => {
+    const id = `${me}_limits`;
+    await getProfile(id);
+    const acct = await createAccount(id, { name: "Card", kind: "checking", openingBalance: "0" });
+    const now = currentMonth();
+    const last = shiftMonth(now.key, -1);
+    const budget = await saveBudget(id, { kind: "picked", name: "Monthly", amount: "100" });
+    const spend = (month: string, amount: string) =>
+      createTransaction(id, { accountId: acct.id, categoryId: null, direction: "out", amount, occurredOn: `${month}-10`, description: "x", note: null, budgetId: budget.id });
+    await spend(last.key, "120.00");
+    await spend(now.key, "120.00");
+
+    await updateBudget(id, budget.id, { amount: "150" });
+    await updateBudget(id, budget.id, { amount: "200" });
+    const history = (await getBudgetHistory(id, now, 3))(budget.id);
+    assert.deepEqual(
+      history.map((h) => [h.spent, h.limit]),
+      [
+        [0, 100],
+        [120, 100],
+        [120, 200],
+      ],
+    );
+    // Progress for a month uses that month's limit.
+    assert.equal((await getBudgetProgress(id, last))[0].amount, "100.00");
+    assert.equal((await getBudgetProgress(id, now))[0].amount, "200.00");
+    // Saving the same amount again records nothing new.
+    await updateBudget(id, budget.id, { amount: "200.00" });
+    assert.equal((await getBudgetProgress(id, last))[0].amount, "100.00");
     await deleteAllData(id);
   });
 

@@ -6,12 +6,13 @@ import type { HistoryPoint } from "./charts";
 const fill = { fine: "bg-steel", close: "bg-amber", over: "bg-accent" } as const;
 const words = { fine: "on track", close: "close", over: "over" } as const;
 
-// One row per month, newest first, so months read side by side instead of one at a time.
-export function BudgetMonths({ history, limit, currency, href }: { history: HistoryPoint[]; limit: number; currency: string; href: (month: string) => string }) {
+// One row per month, newest first, so months read side by side instead of one at a time. Each month is judged
+// against the limit it had, so changing a limit later does not rewrite how past months went.
+export function BudgetMonths({ history, currency, href }: { history: HistoryPoint[]; currency: string; href: (month: string) => string }) {
   return (
     <ol className="flex flex-col divide-y divide-line">
       {[...history].reverse().map((h) => {
-        const ratio = limit > 0 ? h.spent / limit : 0;
+        const ratio = h.limit > 0 ? h.spent / h.limit : 0;
         const status = ratio > 1 ? "over" : ratio >= 0.8 ? "close" : "fine";
         return (
           <li key={h.key}>

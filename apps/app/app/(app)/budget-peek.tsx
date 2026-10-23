@@ -16,7 +16,7 @@ function txHref(b: Peek, month: string) {
   return `/transactions?month=${month}`;
 }
 
-// A budget row on the overview that opens its last six months side by side.
+// A budget row on the overview that opens its last six months side by side, each against the limit it had.
 export function BudgetPeek({
   budget,
   history,
@@ -35,7 +35,7 @@ export function BudgetPeek({
   const limit = Number(budget.amount);
   const months = history.filter((h) => h.spent > 0);
   const avg = months.length ? months.reduce((s, h) => s + h.spent, 0) / months.length : 0;
-  const overCount = history.filter((h) => h.spent > limit).length;
+  const overCount = history.filter((h) => h.spent > h.limit).length;
 
   return (
     <>
@@ -57,12 +57,12 @@ export function BudgetPeek({
             ))}
           </dl>
           <section aria-label="Last six months" className="rounded-[1.1rem] border border-line bg-night p-4">
-            <p className="label mb-2">last six months, against today&apos;s limit</p>
-            <BudgetHistory data={history} limit={limit} currency={currency} />
+            <p className="label mb-2">last six months</p>
+            <BudgetHistory data={history} currency={currency} />
           </section>
           <section aria-label="Month by month">
             <p className="label mb-1">month by month · tap one for its transactions</p>
-            <BudgetMonths history={history} limit={limit} currency={currency} href={(m) => txHref(budget, m)} />
+            <BudgetMonths history={history} currency={currency} href={(m) => txHref(budget, m)} />
           </section>
           <div>
             <Link href="/budgets" className={btn}>

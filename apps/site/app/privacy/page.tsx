@@ -43,7 +43,7 @@ export default function Privacy() {
           <ul className="mt-4 flex list-disc flex-col gap-2 pl-5 marker:text-ash">
             <li className={li}>account names, types and opening balances</li>
             <li className={li}>transactions: amount, date, description, category and any note</li>
-            <li className={li}>budgets and categories</li>
+            <li className={li}>budgets (with the limits they had in past months) and categories</li>
             <li className={li}>your chats with the assistant</li>
             <li className={li}>a few settings, like your currency</li>
           </ul>

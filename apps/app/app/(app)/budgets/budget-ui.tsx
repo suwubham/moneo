@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
+import { monthLabel } from "@/lib/core/dates";
 import { formatMoney } from "@/lib/core/money";
 import type { BudgetSuggestion } from "@/lib/modules/ai/budget-suggest";
 import type { BudgetKind } from "@/lib/modules/budgets/schema";
@@ -59,13 +60,14 @@ function BudgetForm({
   return (
     <form action={action} className="flex flex-col gap-5">
       {initial && history && currency && (
-        <section aria-label="Last six months" className="rounded-[1.1rem] border border-line bg-night p-4">
-          <p className="label mb-2">last six months</p>
-          <BudgetHistory data={history} limit={Number(initial.amount)} currency={currency} />
+        <section aria-label="Every month" className="rounded-[1.1rem] border border-line bg-night p-4">
+          <p className="label mb-2">
+            {history.length} month{history.length === 1 ? "" : "s"} · since {monthLabel(history[0].key).toLowerCase()}
+          </p>
+          <BudgetHistory data={history} currency={currency} />
           <div className="mt-3 border-t border-line pt-2">
             <BudgetMonths
               history={history}
-              limit={Number(initial.amount)}
               currency={currency}
               href={(m) => (txHref ?? `/transactions?budget=${initial.id}&month=${month}`).replace(/month=[^&]+/, `month=${m}`)}
             />
@@ -107,7 +109,7 @@ function BudgetForm({
           <input id="name" name="name" required maxLength={60} defaultValue={initial?.name} placeholder="Trip to Pokhara" className={input} autoComplete="off" />
         </Field>
       )}
-      <Field label="monthly limit" name="amount" state={state}>
+      <Field label="monthly limit" name="amount" state={state} hint={initial ? "a new limit counts from this month on. past months keep the limit they had." : undefined}>
         <input id="amount" name="amount" required inputMode="decimal" defaultValue={initial?.amount} placeholder="0.00" className={`${input} tabular-nums`} />
       </Field>
       {initial && (txHref || initial.kind === "picked") && (

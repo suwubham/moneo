@@ -5,7 +5,7 @@ import { requireProfile } from "@/lib/core/auth";
 import { currentMonth, daysInMonth, isMonthKey, monthOf, todayIso } from "@/lib/core/dates";
 import { toNumber } from "@/lib/core/money";
 import { Flag, Wallet } from "lucide-react";
-import { getBudgetHistory, getBudgetProgress, statusOf } from "@/lib/modules/budgets/service";
+import { getBudgetHistory, getBudgetProgress, getFullBudgetHistory, statusOf } from "@/lib/modules/budgets/service";
 import { getCategories } from "@/lib/modules/categories/service";
 import { CategoryIcon } from "../../_components/category-icon";
 import { MiniColumns } from "../../_components/charts";
@@ -41,10 +41,11 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
   const sp = await searchParams;
   const key = isMonthKey(sp.month) ? sp.month : currentMonth().key;
   const month = monthOf(key);
-  const [budgets, categories, historyOf] = await Promise.all([
+  const [budgets, categories, historyOf, fullHistoryOf] = await Promise.all([
     getBudgetProgress(profile.id, month),
     getCategories(profile.id),
     getBudgetHistory(profile.id, month, 6),
+    getFullBudgetHistory(profile.id, month),
   ]);
 
   const expense = categories.filter((c) => c.kind === "expense").map((c) => ({ id: c.id, name: c.name }));
@@ -96,7 +97,7 @@ async function Budgets({ searchParams }: { searchParams: PageProps<"/budgets">["
                   <EditBudget
                     budget={{ id: b.id, kind: b.kind, name: b.name, amount: b.amount }}
                     month={key}
-                    history={history}
+                    history={fullHistoryOf(b.id)}
                     txHref={txHref}
                     currency={profile.currency}
                     className={`${card} block w-full p-5 text-left transition-[translate,border-color] duration-300 ease-soft hover:-translate-y-0.5 hover:border-steel`}

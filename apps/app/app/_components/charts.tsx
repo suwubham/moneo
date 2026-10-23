@@ -9,6 +9,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Line,
   LineChart,
   ReferenceLine,
@@ -236,10 +237,15 @@ export function BalanceChart({ data, currency }: { data: BalancePoint[]; currenc
   );
 }
 
-export type HistoryPoint = { key: string; label: string; spent: number };
+// One month of a budget: what it spent and the limit that applied that month.
+export type HistoryPoint = { key: string; label: string; spent: number; limit: number };
 
-export function BudgetHistory({ data, limit, currency }: { data: HistoryPoint[]; limit: number; currency: string }) {
-  const series: Series[] = [{ key: "spent", label: "spent", color: "var(--chart-in)" }];
+// Spent per month in bars, the limit as a step line, so a raised or lowered limit shows from the month it changed.
+export function BudgetHistory({ data, currency }: { data: HistoryPoint[]; currency: string }) {
+  const series: Series[] = [
+    { key: "spent", label: "spent", color: "var(--chart-in)" },
+    { key: "limit", label: "limit", color: "var(--ink-soft)" },
+  ];
   return (
     <div className="flex flex-col gap-2">
       <p className="label flex gap-4">
@@ -252,17 +258,21 @@ export function BudgetHistory({ data, limit, currency }: { data: HistoryPoint[];
       </p>
       <div className="chart h-44">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 12, right: 0, left: 0, bottom: 0 }}>
+          <ComposedChart data={data} margin={{ top: 12, right: 0, left: 0, bottom: 0 }}>
             {grid}
             <XAxis dataKey="label" {...axis} />
-            <YAxis {...axis} width={44} tickFormatter={(v: number) => compact.format(v)} domain={[0, (max: number) => Math.max(max, limit) * 1.1]} />
+            <YAxis {...axis} width={44} tickFormatter={(v: number) => compact.format(v)} domain={[0, (max: number) => max * 1.1]} />
             <Tooltip cursor={{ fill: "color-mix(in srgb, var(--ink) 6%, transparent)" }} content={(p) => <Tip active={p.active} payload={p.payload} label={p.label} currency={currency} series={series} />} />
-            <ReferenceLine y={limit} stroke="var(--ink-soft)" strokeWidth={1} />
             <Bar dataKey="spent" fill="var(--chart-in)" radius={[4, 4, 0, 0]} maxBarSize={24} />
-          </BarChart>
+            <Line dataKey="limit" type="stepAfter" stroke="var(--ink-soft)" strokeWidth={1} dot={false} activeDot={false} isAnimationActive={false} />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <TableTwin caption="Spent per month" head={["Month", "Spent"]} rows={data.map((d) => [d.label, formatMoney(d.spent, currency)])} />
+      <TableTwin
+        caption="Spent per month against its limit"
+        head={["Month", "Spent", "Limit"]}
+        rows={data.map((d) => [d.label, formatMoney(d.spent, currency), formatMoney(d.limit, currency)])}
+      />
     </div>
   );
 }

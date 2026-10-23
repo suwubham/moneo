@@ -2,7 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { Conn } from "@/lib/db";
 import { categories } from "@/lib/modules/categories/schema";
 import { transactions } from "@/lib/modules/transactions/schema";
-import { type BudgetKind, budgets } from "./schema";
+import { type BudgetKind, budgetLimits, budgets } from "./schema";
 
 // Which transactions a budget counts. Total and category budgets count money out. A picked budget counts everything
 // added to it, so money back on it (a refund, a friend paying their share) lowers what it spent, as in Cashew.
@@ -34,7 +34,12 @@ export function listBudgetProgress(c: Conn, userId: string, range: { start: stri
       name: sql<string>`coalesce(${budgets.name}, ${categories.name}, 'All spending')`,
       icon: categories.icon,
       color: categories.color,
-      amount: budgets.amount,
+      // The limit that applied in this month.
+      amount: sql<string>`coalesce((
+        select ${budgetLimits.amount} from ${budgetLimits}
+        where ${budgetLimits.budgetId} = ${budgets.id} and ${budgetLimits.fromMonth} <= ${range.start.slice(0, 7)}
+        order by ${budgetLimits.fromMonth} desc limit 1
+      ), ${budgets.amount})`,
       spent,
     })
     .from(budgets)
@@ -58,9 +63,39 @@ export function budgetHistory(c: Conn, userId: string, range: { start: string; e
     .groupBy(budgets.id, month);
 }
 
+export function listLimits(c: Conn, userId: string) {
+  return c
+    .select({ budgetId: budgetLimits.budgetId, fromMonth: budgetLimits.fromMonth, amount: budgetLimits.amount })
+    .from(budgetLimits)
+    .where(eq(budgetLimits.userId, userId))
+    .orderBy(asc(budgetLimits.fromMonth));
+}
+
+export async function upsertLimit(c: Conn, row: { userId: string; budgetId: string; fromMonth: string; amount: string }) {
+  await c
+    .insert(budgetLimits)
+    .values(row)
+    .onConflictDoUpdate({ target: [budgetLimits.budgetId, budgetLimits.fromMonth], set: { amount: row.amount, updatedAt: new Date() } });
+}
+
+// The budget a category or total save would land on, if the person already has it.
+export async function findBudgetFor(c: Conn, userId: string, where: { kind: "total" } | { kind: "category"; categoryId: string }) {
+  const [row] = await c
+    .select()
+    .from(budgets)
+    .where(
+      and(
+        eq(budgets.userId, userId),
+        where.kind === "total" ? eq(budgets.kind, "total") : eq(budgets.categoryId, where.categoryId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 export function listBudgets(c: Conn, userId: string) {
   return c
-    .select({ id: budgets.id, kind: budgets.kind, categoryId: budgets.categoryId, name: budgets.name })
+    .select({ id: budgets.id, kind: budgets.kind, categoryId: budgets.categoryId, name: budgets.name, amount: budgets.amount })
     .from(budgets)
     .where(eq(budgets.userId, userId))
     .orderBy(asc(budgets.name));

@@ -43,6 +43,13 @@
       "when": 1792766236244,
       "tag": "0005_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792777169254,
+      "tag": "0006_budget_limits",
+      "breakpoints": true
     }
   ]
 }

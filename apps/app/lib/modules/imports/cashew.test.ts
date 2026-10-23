@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import type { AppError } from "@/lib/core/errors";
-import { monthOf } from "@/lib/core/dates";
+import { currentMonth, monthOf } from "@/lib/core/dates";
 import { getAccounts } from "@/lib/modules/accounts/service";
 import { getBudgetProgress, saveBudget } from "@/lib/modules/budgets/service";
 import { deleteAllData, getProfile } from "@/lib/modules/profiles/service";
@@ -167,10 +167,11 @@ describe("cashew import against Postgres", { skip: !hasDb && "no DATABASE_URL" }
       ],
     );
 
-    // A limit set in Moneo wins over a later import.
+    // A limit set in Moneo wins over a later import. It counts from this month on; the old month keeps its limit.
     await saveBudget(me, { kind: "total", amount: "100.00" });
     await importCashew(me, file, -345);
-    assert.equal((await getBudgetProgress(me, monthOf("2025-10")))[0].amount, "100.00");
+    assert.equal((await getBudgetProgress(me, currentMonth()))[0].amount, "100.00");
+    assert.equal((await getBudgetProgress(me, monthOf("2025-10")))[0].amount, "30000.00");
   });
 
   test("an older import gets its budget links on the next one", async () => {
