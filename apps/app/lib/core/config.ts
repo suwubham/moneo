@@ -19,6 +19,14 @@ const schema = z.object({
   aiModel: z.preprocess(blank, z.string().default("gemini-3.6-flash")),
   aiHourlyLimit: z.preprocess(blank, z.coerce.number().int().positive().default(60)),
 
+  // Charts and files: scripts run in a Vercel Sandbox (signs in with VERCEL_OIDC_TOKEN), files are kept in Cloudflare R2.
+  sandbox: z.preprocess(blank, z.literal("on").optional()),
+  sandboxHourlyLimit: z.preprocess(blank, z.coerce.number().int().positive().default(20)),
+  r2AccountId: opt,
+  r2AccessKeyId: opt,
+  r2SecretAccessKey: opt,
+  r2Bucket: opt,
+
   siteUrl: z.preprocess(blank, z.url().default("http://localhost:3030")),
   webUrl: z.preprocess(blank, z.url().default("http://localhost:3031")),
 });
@@ -35,6 +43,12 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
     googleCredentialsJson: env.APP_GOOGLE_CREDENTIALS_JSON,
     aiModel: env.APP_AI_MODEL,
     aiHourlyLimit: env.APP_AI_HOURLY_LIMIT,
+    sandbox: env.APP_SANDBOX,
+    sandboxHourlyLimit: env.APP_SANDBOX_HOURLY_LIMIT,
+    r2AccountId: env.APP_R2_ACCOUNT_ID,
+    r2AccessKeyId: env.APP_R2_ACCESS_KEY_ID,
+    r2SecretAccessKey: env.APP_R2_SECRET_ACCESS_KEY,
+    r2Bucket: env.APP_R2_BUCKET,
     siteUrl: env.APP_SITE_URL,
     webUrl: env.APP_WEB_URL,
   });
@@ -44,3 +58,8 @@ export const settings = loadSettings();
 
 export const isProduction = settings.environment === "production";
 export const aiEnabled = Boolean(settings.gcpProject);
+// Off unless the assistant is on, APP_SANDBOX=on and every R2 setting is filled in.
+export const sandboxEnabled =
+  aiEnabled &&
+  settings.sandbox === "on" &&
+  Boolean(settings.r2AccountId && settings.r2AccessKeyId && settings.r2SecretAccessKey && settings.r2Bucket);

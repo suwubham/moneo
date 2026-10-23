@@ -1,15 +1,18 @@
 import "server-only";
 import { AIMessage, AIMessageChunk, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import { settings } from "@/lib/core/config";
+import { sandboxEnabled, settings } from "@/lib/core/config";
 import { todayIso } from "@/lib/core/dates";
 import { notFound, rateLimited } from "@/lib/core/errors";
 import { log } from "@/lib/core/log";
 import { getDb, unitOfWork } from "@/lib/db";
 import { GraphRecursionError } from "@langchain/langgraph";
 import { visibleText } from "@/lib/modules/ai/text";
+import { attachFiles } from "@/lib/modules/files/repository";
+import { type FileMeta, type TurnSandbox, getFilesFor, removeChatFiles } from "@/lib/modules/files/service";
 import { buildAssistantGraph } from "./graph";
 import {
+  conversationIds,
   countUserMessagesSince,
   findConversation,
   insertConversation,
@@ -18,6 +21,7 @@ import {
   listConversations,
   listMessages,
   removeConversation,
+  savedData,
   touchConversation,
 } from "./repository";
 
@@ -30,6 +34,7 @@ export type ChatEvent =
   | { t: "meta"; conversationId: string; title: string }
   | { t: "text"; v: string }
   | { t: "tool"; name: string; state: "start" | "end" }
+  | { t: "file"; file: FileMeta }
   | { t: "done"; messageId: string }
   | { t: "error"; error: { code: string; message: string } };
 
@@ -43,13 +48,26 @@ export async function getConversation(userId: string, id: string) {
   const db = getDb();
   const conversation = await findConversation(db, userId, id);
   if (!conversation) return null;
-  return { conversation, messages: await listMessages(db, id) };
+  const messages = await listMessages(db, id);
+  const files = sandboxEnabled ? await getFilesFor(userId, messages.filter((m) => m.role === "assistant").map((m) => m.id)) : [];
+  return {
+    conversation,
+    messages: messages.map((m) => ({
+      ...m,
+      files: files.filter((f) => f.messageId === m.id).map(({ id: fileId, name, kind, bytes }) => ({ id: fileId, name, kind, bytes })),
+    })),
+  };
 }
 
 export async function deleteConversation(userId: string, id: string) {
   await unitOfWork(async (tx) => {
     if (!(await removeConversation(tx, userId, id))) throw notFound("conversation");
   });
+  await removeChatFiles(userId, id);
+}
+
+export function getConversationIds(userId: string) {
+  return conversationIds(getDb(), userId);
 }
 
 function titleFrom(text: string) {
@@ -68,15 +86,23 @@ export async function startTurn(userId: string, input: z.infer<typeof chatInput>
       : await insertConversation(tx, userId, titleFrom(input.message));
     if (!conversation) throw notFound("conversation");
     const history = await lastMessages(tx, conversation.id, HISTORY);
+    const saved = sandboxEnabled && input.conversationId ? (await savedData(tx, conversation.id)).slice(-30) : [];
     await insertMessage(tx, { conversationId: conversation.id, userId, role: "user", content: input.message });
     await touchConversation(tx, conversation.id);
-    return { conversation, history };
+    return { conversation, history, saved };
   });
 }
 
-async function finishTurn(userId: string, conversationId: string, content: string, tools: string[]) {
+async function finishTurn(
+  userId: string,
+  conversationId: string,
+  content: string,
+  tools: string[],
+  made: { data: string[]; fileIds: string[] } = { data: [], fileIds: [] },
+) {
   return unitOfWork(async (tx) => {
-    const saved = await insertMessage(tx, { conversationId, userId, role: "assistant", content, tools });
+    const saved = await insertMessage(tx, { conversationId, userId, role: "assistant", content, tools, ...(made.data.length && { data: made.data }) });
+    await attachFiles(tx, userId, made.fileIds, saved.id);
     await touchConversation(tx, conversationId);
     return saved;
   });
@@ -85,7 +111,7 @@ async function finishTurn(userId: string, conversationId: string, content: strin
 
 // Streams one assistant turn. History is replayed as plain text; tool results are not stored, the model re-asks.
 export async function* streamReply(
-  ctx: { userId: string; currency: string },
+  ctx: { userId: string; currency: string; box?: TurnSandbox },
   turn: Awaited<ReturnType<typeof startTurn>>,
   message: string,
   signal: AbortSignal,
@@ -93,7 +119,8 @@ export async function* streamReply(
   const { conversation, history } = turn;
   yield { t: "meta", conversationId: conversation.id, title: conversation.title };
 
-  const graph = buildAssistantGraph({ ...ctx, today: todayIso() });
+  const graph = buildAssistantGraph({ ...ctx, today: todayIso(), saved: turn.saved });
+  let sent = 0;
   const input = [
     ...history.map((m) => (m.role === "user" ? new HumanMessage(m.content) : new AIMessage(m.content))),
     new HumanMessage(message),
@@ -120,6 +147,8 @@ export async function* streamReply(
         }
       } else if (ToolMessage.isInstance(chunk)) {
         yield { t: "tool", name: chunk.name ?? "tool", state: "end" };
+        for (const file of ctx.box?.files.slice(sent) ?? []) yield { t: "file", file };
+        sent = ctx.box?.files.length ?? 0;
       }
     }
   } catch (err) {
@@ -136,9 +165,12 @@ export async function* streamReply(
     }
   }
 
-  const content = text.trim() || (signal.aborted ? "(stopped)" : "");
+  // Files made before a failure are kept with a short note, so they still show in the chat.
+  const fallback = ctx.box?.files.length ? "I made the file below, but could not finish writing the answer." : "";
+  const content = text.trim() || (signal.aborted ? "(stopped)" : fallback);
   if (content) {
-    const saved = await finishTurn(ctx.userId, conversation.id, content, [...new Set(tools)]);
+    const made = { data: ctx.box?.data ?? [], fileIds: ctx.box?.files.map((f) => f.id) ?? [] };
+    const saved = await finishTurn(ctx.userId, conversation.id, content, [...new Set(tools)], made);
     log.info("chat turn", { ms: Date.now() - started, tools: [...new Set(tools)].join(","), chars: content.length });
     if (!signal.aborted) yield { t: "done", messageId: saved.id };
   }

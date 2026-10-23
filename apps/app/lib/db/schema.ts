@@ -4,3 +4,4 @@ export * from "../modules/categories/schema";
 export * from "../modules/transactions/schema";
 export * from "../modules/budgets/schema";
 export * from "../modules/assistant/schema";
+export * from "../modules/files/schema";

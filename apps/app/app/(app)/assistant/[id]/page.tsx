@@ -26,7 +26,7 @@ async function Conversation({ params }: { params: PageProps<"/assistant/[id]">["
     <Chat
       key={id}
       conversationId={id}
-      initial={found.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, tools: m.tools }))}
+      initial={found.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, tools: m.tools, files: m.files }))}
     />
   );
 }

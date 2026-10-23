@@ -53,7 +53,7 @@ export async function lastMessages(c: Conn, conversationId: string, limit: numbe
 
 export async function insertMessage(
   c: Conn,
-  row: { conversationId: string; userId: string; role: MessageRole; content: string; tools?: string[] },
+  row: { conversationId: string; userId: string; role: MessageRole; content: string; tools?: string[]; data?: string[] },
 ) {
   const [saved] = await c.insert(messages).values(row).returning();
   return saved;
@@ -65,4 +65,19 @@ export async function countUserMessagesSince(c: Conn, userId: string, since: Dat
     .from(messages)
     .where(and(eq(messages.userId, userId), eq(messages.role, "user"), gte(messages.createdAt, since)));
   return row?.n ?? 0;
+}
+
+// What earlier turns of this chat saved to its sandbox, oldest first.
+export async function savedData(c: Conn, conversationId: string) {
+  const rows = await c
+    .select({ data: messages.data })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conversationId), sql`jsonb_array_length(${messages.data}) > 0`))
+    .orderBy(asc(messages.createdAt));
+  return rows.flatMap((r) => r.data);
+}
+
+export async function conversationIds(c: Conn, userId: string) {
+  const rows = await c.select({ id: conversations.id }).from(conversations).where(eq(conversations.userId, userId));
+  return rows.map((r) => r.id);
 }
