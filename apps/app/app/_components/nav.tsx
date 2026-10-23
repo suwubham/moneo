@@ -3,8 +3,7 @@
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLayoutEffect, useRef, useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ThemeToggle } from "@moneo/ui/theme-toggle";
 import { ClientOnly } from "./client-only";
 
@@ -63,11 +62,16 @@ const links: Item[] = [
 const settings = { href: "/settings", label: "Settings", scene: "steel" };
 
 const pill =
-  "fixed inset-x-0 top-4 z-40 mx-auto hidden w-fit items-center gap-1.5 rounded-full border border-line bg-night-2/90 p-1.5 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] pointer-fine:backdrop-blur-md md:flex";
-const pillLink = "shrink-0 rounded-full px-3.5 py-2 font-mono text-[.78rem] whitespace-nowrap transition-colors duration-300 ease-soft";
+  "fixed inset-x-0 top-4 z-40 mx-auto hidden w-fit items-center gap-1.5 rounded-full border border-line bg-night-2/90 p-1.5 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] pointer-fine:bg-night-2/70 pointer-fine:backdrop-blur-md md:flex";
+const pillLink =
+  "group relative isolate block shrink-0 rounded-full px-3.5 py-2 font-mono text-[.78rem] whitespace-nowrap text-ink-soft transition-colors duration-300 ease-soft hover:text-ink data-[active]:text-on-accent";
+// Each link carries its own highlight, as on the site: it grows and fades in under the active one.
+const glow =
+  "absolute inset-0 -z-10 scale-75 bg-scene opacity-0 transition-[scale,opacity] duration-500 ease-snap group-data-[active]:scale-100 group-data-[active]:opacity-100";
 const tabs =
   "fixed inset-x-2 bottom-[max(.5rem,env(safe-area-inset-bottom))] z-40 grid grid-cols-5 rounded-[1.4rem] border border-line bg-night-2/95 p-1 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] md:hidden";
-const tab = "flex flex-col items-center gap-0.5 rounded-[1.1rem] py-1.5 font-mono text-[.64rem] transition-colors duration-300 ease-soft";
+const tab =
+  "group relative isolate flex flex-col items-center gap-0.5 rounded-[1.1rem] py-1.5 font-mono text-[.64rem] text-ink-soft transition-colors duration-300 ease-soft data-[active]:text-on-accent";
 const iconBtn =
   "grid size-10 shrink-0 place-items-center rounded-full border border-line bg-night-3 text-ink-soft transition-colors duration-300 ease-soft hover:border-accent hover:text-ink";
 
@@ -117,70 +121,41 @@ function useTarget(path: string | null) {
   return [target, (href: string) => setWant({ href, from: path })] as const;
 }
 
-// One highlight that slides between links. Links differ in width, so it moves with translate and
-// corrects its width with a short scaleX settle (transform only).
-function PillIndicator({ list, href }: { list: React.RefObject<Map<string, HTMLAnchorElement>>; href: string | undefined }) {
-  const el = useRef<HTMLSpanElement>(null);
-  const last = useRef<{ x: number; w: number } | null>(null);
-
-  // Measured after layout and written straight to the element: positions come from the DOM, not from React state.
-  useLayoutEffect(() => {
-    const span = el.current;
-    const link = href ? list.current.get(href) : undefined;
-    if (!span) return;
-    if (!link) {
-      span.style.opacity = "0";
-      last.current = null;
-      return;
-    }
-    const next = { x: link.offsetLeft, w: link.offsetWidth };
-    span.style.opacity = "1";
-    span.style.width = `${next.w}px`;
-    span.style.transform = `translateX(${next.x}px)`;
-    const prev = last.current;
-    last.current = next;
-    if (!prev || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    span.animate(
-      [{ transform: `translateX(${prev.x}px) scaleX(${prev.w / next.w})` }, { transform: `translateX(${next.x}px) scaleX(1)` }],
-      { duration: 320, easing: "cubic-bezier(0.7, 0, 0.2, 1)" },
-    );
-  }, [href, list]);
-
-  return <span ref={el} aria-hidden className="absolute inset-y-0 left-0 origin-left rounded-full bg-scene opacity-0 transition-opacity duration-200" />;
+// The label rolls up to a copy of itself on hover.
+function Roll({ children }: { children: string }) {
+  return (
+    <span className="relative block overflow-hidden">
+      <span className="block transition-transform duration-500 ease-snap group-hover:-translate-y-full">{children}</span>
+      <span aria-hidden className="absolute inset-0 translate-y-full transition-transform duration-500 ease-snap group-hover:translate-y-0">
+        {children}
+      </span>
+    </span>
+  );
 }
 
 // Rendered without a path in the static shell, before the URL is known.
 export function NavShell({ path }: { path: string | null }) {
   const [target, go] = useTarget(path);
-  const linkEls = useRef(new Map<string, HTMLAnchorElement>());
-  const pillOn = [...links, settings].find((l) => active(target, l.href))?.href;
-  const tabIndex = links.findIndex((l) => active(target, l.href));
 
   return (
     <>
       <nav aria-label="Main" className={pill} style={{ viewTransitionName: "nav-pill" }}>
         <Mark />
-        <ul className="relative flex items-center gap-0.5">
-          <PillIndicator list={linkEls} href={pillOn} />
-          {[...links, settings].map((l) => {
-            const on = l.href === pillOn;
-            return (
-              <li key={l.href} className="relative z-10">
-                <Link
-                  href={l.href}
-                  ref={(e) => {
-                    if (e) linkEls.current.set(l.href, e);
-                    else linkEls.current.delete(l.href);
-                  }}
-                  onClick={() => go(l.href)}
-                  aria-current={active(path, l.href) ? "page" : undefined}
-                  className={`${pillLink} block ${on ? "text-night delay-150 duration-150" : "text-ink-soft duration-100 hover:text-ink"}`}
-                >
-                  {l.label}
-                </Link>
-              </li>
-            );
-          })}
+        <ul className="flex items-center">
+          {[...links, settings].map((l) => (
+            <li key={l.href}>
+              <Link
+                href={l.href}
+                onClick={() => go(l.href)}
+                aria-current={active(path, l.href) ? "page" : undefined}
+                data-active={active(target, l.href) || undefined}
+                className={pillLink}
+              >
+                <span className={`${glow} rounded-full`} aria-hidden />
+                <Roll>{l.label}</Roll>
+              </Link>
+            </li>
+          ))}
         </ul>
         <ThemeToggle />
         <div className="grid size-10 shrink-0 place-items-center">
@@ -208,29 +183,22 @@ export function NavShell({ path }: { path: string | null }) {
       </header>
 
       <nav aria-label="Main" className={tabs} style={{ viewTransitionName: "nav-tabs" }}>
-        {/* Tabs are equal width, so the highlight only needs to slide. */}
-        <span
-          aria-hidden
-          className={`absolute top-1 bottom-1 left-1 rounded-[1.1rem] bg-scene transition-[translate,opacity] duration-300 ease-snap ${tabIndex < 0 ? "opacity-0" : ""}`}
-          style={{ width: `calc((100% - 0.5rem) / ${links.length})`, translate: `${Math.max(0, tabIndex) * 100}% 0` }}
-        />
-        {links.map((l, i) => {
-          const on = i === tabIndex;
-          return (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => go(l.href)}
-              aria-current={active(path, l.href) ? "page" : undefined}
-              className={`${tab} relative z-10 ${on ? "text-night delay-150 duration-150" : "text-ink-soft duration-100"}`}
-            >
-              <svg viewBox="0 0 24 24" className={`size-5 transition-transform duration-300 ease-soft ${on ? "-translate-y-px scale-110" : ""}`} aria-hidden>
-                {l.icon}
-              </svg>
-              {l.short}
-            </Link>
-          );
-        })}
+        {links.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            onClick={() => go(l.href)}
+            aria-current={active(path, l.href) ? "page" : undefined}
+            data-active={active(target, l.href) || undefined}
+            className={tab}
+          >
+            <span className={`${glow} rounded-[1.1rem]`} aria-hidden />
+            <svg viewBox="0 0 24 24" className="size-5 transition-transform duration-300 ease-soft group-data-[active]:-translate-y-px group-data-[active]:scale-110" aria-hidden>
+              {l.icon}
+            </svg>
+            {l.short}
+          </Link>
+        ))}
       </nav>
     </>
   );
