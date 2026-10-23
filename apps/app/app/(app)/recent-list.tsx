@@ -59,7 +59,7 @@ export function RecentList({
         })}
       </ul>
       <Drawer open={editing !== null} onClose={close} title={editing?.title ?? ""}>
-        {editing && <EditorForm editing={editing} accounts={accounts} categories={categories} budgets={budgets} currency={currency} onDone={close} />}
+        {editing && <EditorForm editing={editing} accounts={accounts} categories={categories} budgets={budgets} currency={currency} today={today} onDone={close} />}
       </Drawer>
     </>
   );

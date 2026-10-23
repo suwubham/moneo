@@ -99,6 +99,8 @@ describe("finance modules against Postgres", { skip: !hasDb && "no DATABASE_URL"
     await createTransaction(id, { ...base, categoryId: dining.id, amount: "40.00", description: "Dinner", budgetId: trip.id });
     await createTransaction(id, { ...base, categoryId: dining.id, amount: "10.00", description: "Snack" });
     await createTransaction(id, { ...base, categoryId: null, amount: "300.00", description: "To savings", excludeFromBudgets: true });
+    // Money back on a picked budget lowers what it spent; it does not touch the other budgets.
+    await createTransaction(id, { ...base, direction: "in", categoryId: null, amount: "15.00", description: "Friend paid their share", budgetId: trip.id });
 
     const got = await getBudgetProgress(id, oct);
     assert.deepEqual(
@@ -106,7 +108,7 @@ describe("finance modules against Postgres", { skip: !hasDb && "no DATABASE_URL"
       [
         ["All spending", "50.00"],
         ["Gifts", "0.00"],
-        ["Trip", "40.00"],
+        ["Trip", "25.00"],
         ["Dining", "50.00"],
       ],
     );

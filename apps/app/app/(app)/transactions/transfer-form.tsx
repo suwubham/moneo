@@ -3,9 +3,10 @@
 import { useOffline } from "next/offline";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
-import { formatMoney, toNumber } from "@/lib/core/money";
+import { formatMoney, plainAmount, toNumber } from "@/lib/core/money";
 import { type AccountKind, isOwed } from "@/lib/modules/accounts/constants";
 import { Field, FormError, Submit } from "../../_components/form";
+import { Segmented, segItem } from "../../_components/segmented";
 import { btn, btnDanger, btnPrimary, control, input, textarea } from "../../_components/styles";
 import { deleteTransferAction, saveTransferAction } from "./actions";
 import type { Option } from "./transaction-form";
@@ -35,11 +36,14 @@ export function TransferForm({
   values,
   accounts,
   currency,
+  onSwitch,
   onDone,
 }: {
   values: TransferValues;
   accounts: AccountOption[];
   currency?: string;
+  // For a new transfer: go back to a plain money out or money in.
+  onSwitch?: (direction: "out" | "in") => void;
   onDone: () => void;
 }) {
   const [saved, action] = useActionState(saveTransferAction, null);
@@ -93,6 +97,18 @@ export function TransferForm({
       className="flex flex-col gap-5"
     >
       {values.id && <input type="hidden" name="id" value={values.id} />}
+      {onSwitch && (
+        <Segmented count={3} index={2} className="bg-night">
+          {(["out", "in"] as const).map((d) => (
+            <button key={d} type="button" onClick={() => onSwitch(d)} className={`${segItem(false)} py-2`}>
+              {d === "out" ? "money out" : "money in"}
+            </button>
+          ))}
+          <span aria-current="true" className={`${segItem(true)} py-2`}>
+            move money
+          </span>
+        </Segmented>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         {pick("fromAccountId", "from", values.fromAccountId)}
         {pick("toAccountId", "to", values.toAccountId)}
@@ -128,7 +144,7 @@ export function TransferForm({
           type="button"
           className={`${btn} self-start`}
           onClick={() => {
-            if (amountRef.current) amountRef.current.value = owes.toFixed(2);
+            if (amountRef.current) amountRef.current.value = plainAmount(owes);
             const d = descriptionRef.current;
             if (d && (d.value === "" || d.value === "Transfer")) d.value = `${target.name} payment`;
           }}

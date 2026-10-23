@@ -25,6 +25,12 @@ export function asOwed(amount: string): string {
   return Number(plain) === 0 ? "0" : `-${plain}`;
 }
 
+// An amount for a form field: no sign, and no ".00" on a whole amount ("20000", "12.50").
+export function plainAmount(value: number): string {
+  const fixed = Math.abs(value).toFixed(2);
+  return fixed.endsWith(".00") ? fixed.slice(0, -3) : fixed;
+}
+
 export function toNumber(value: string | number | null | undefined): number {
   const n = typeof value === "number" ? value : Number(value ?? 0);
   return Number.isFinite(n) ? n : 0;
@@ -39,6 +45,8 @@ export function formatMoney(value: string | number | null | undefined, currency:
     notation: opts.compact && Math.abs(n) >= 100_000 ? "compact" : "standard",
     maximumFractionDigits: opts.compact ? 0 : 2,
     minimumFractionDigits: opts.compact ? 0 : 2,
+    // Whole amounts drop the ".00"; anything with cents keeps both digits (12.50, not 12.5).
+    trailingZeroDisplay: "stripIfInteger",
   });
   return f.format(n);
 }

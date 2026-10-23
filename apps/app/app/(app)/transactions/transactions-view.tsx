@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeftRight, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
 import { formatMoney, toNumber } from "@/lib/core/money";
@@ -12,7 +12,7 @@ import { Drawer } from "../../_components/drawer";
 import { PendingChanges } from "../../_components/pending-changes";
 import { badge, btnPrimary, btnSoft, card } from "../../_components/styles";
 import { draftTransactionAction } from "./actions";
-import { type Editing, EditorForm, TransferIcon, editorFor, newTransfer, transferLabel } from "./editor";
+import { type Editing, EditorForm, TransferIcon, editorFor, transferLabel } from "./editor";
 import { FilterBar } from "./filter-bar";
 import type { CategoryOption, Option, TxValues } from "./transaction-form";
 import type { AccountOption } from "./transfer-form";
@@ -53,6 +53,8 @@ type Props = {
   // On an account's own page, new transactions start in that account and rows skip its name.
   defaultAccount?: string;
   showAccount?: boolean;
+  // A running balance only means something inside one account.
+  showBalance?: boolean;
   filters: React.ComponentProps<typeof FilterBar>;
   toolbar: React.ReactNode;
   footer: React.ReactNode;
@@ -73,7 +75,21 @@ function blank(today: string, accounts: Option[], account?: string): TxValues {
   };
 }
 
-export function TransactionsView({ groups, accounts, categories, budgets, currency, today, aiOn, defaultAccount, showAccount = true, filters, toolbar, footer }: Props) {
+export function TransactionsView({
+  groups,
+  accounts,
+  categories,
+  budgets,
+  currency,
+  today,
+  aiOn,
+  defaultAccount,
+  showAccount = true,
+  showBalance = false,
+  filters,
+  toolbar,
+  footer,
+}: Props) {
   const [editing, setEditing] = useState<Editing | null>(null);
   const close = useCallback(() => setEditing(null), []);
   const open = useCallback((title: string, values: TxValues) => setEditing({ kind: "tx", title, values, key: Date.now() }), []);
@@ -104,9 +120,6 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
         >
           <Plus className="size-4" aria-hidden /> Add transaction
           <kbd className="hidden rounded border border-on-accent/30 px-1.5 font-mono text-[.7rem] lg:inline">n</kbd>
-        </button>
-        <button type="button" className={btnSoft} disabled={accounts.length < 2} onClick={() => setEditing(newTransfer(today, defaultAccount))}>
-          <ArrowLeftRight className="size-4" aria-hidden /> Move money
         </button>
       </div>
 
@@ -154,10 +167,12 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
                         </span>
                         <span className="text-right tabular-nums">
                           <span className={`block font-semibold ${n > 0 ? "text-steel" : ""}`}>{formatMoney(n, currency, { sign: n > 0 })}</span>
-                          <span className="label block">
-                            <span className="sr-only">{t.accountName} balance after: </span>
-                            {balanceText(t.accountKind, t.balance, currency)}
-                          </span>
+                          {showBalance && (
+                            <span className="label block">
+                              <span className="sr-only">balance after: </span>
+                              {balanceText(t.accountKind, t.balance, currency)}
+                            </span>
+                          )}
                         </span>
                       </button>
                     </li>
@@ -182,7 +197,16 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
                 ask the assistant about this →
               </Link>
             )}
-            <EditorForm editing={editing} accounts={accounts} categories={categories} budgets={budgets} currency={currency} onDone={close} />
+            <EditorForm
+              editing={editing}
+              accounts={accounts}
+              categories={categories}
+              budgets={budgets}
+              currency={currency}
+              today={today}
+              onSwitch={setEditing}
+              onDone={close}
+            />
           </>
         )}
       </Drawer>

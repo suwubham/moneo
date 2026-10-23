@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { autoDecision } from "../db/migrate";
 import { dayLabel, monthOf, shiftMonth } from "./dates";
-import { amountInput, formatMoney, withSign } from "./money";
+import { amountInput, formatMoney, plainAmount, withSign } from "./money";
 
 describe("dates", () => {
   test("a month is a half-open range that rolls into the next year", () => {
@@ -36,7 +36,11 @@ describe("money", () => {
 
   test("formatting uses the profile currency", () => {
     assert.equal(formatMoney("-12.5", "USD"), "-$12.50");
-    assert.equal(formatMoney(3, "USD", { sign: true }), "+$3.00");
+    // Whole amounts drop ".00"; cents keep both digits.
+    assert.equal(formatMoney(3, "USD", { sign: true }), "+$3");
+    assert.equal(formatMoney("20000.00", "NPR"), "NPR\u00a020,000");
+    assert.equal(plainAmount(-20000), "20000");
+    assert.equal(plainAmount(12.5), "12.50");
   });
 });
 

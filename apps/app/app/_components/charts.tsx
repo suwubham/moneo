@@ -269,6 +269,20 @@ export function BudgetHistory({ data, limit, currency }: { data: HistoryPoint[];
 
 export type MiniPoint = { key: string; label: string; value: number };
 
+// Tiles are small, so their charts get a one-line pill that rides just above the chart instead of a card over it.
+function MiniTip({ active, payload, currency }: Pick<TipProps, "active" | "payload" | "currency">) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload as MiniPoint;
+  return (
+    <p className="rounded-full border border-line bg-night-2 px-2.5 py-1 font-mono text-[.7rem] whitespace-nowrap shadow-[0_10px_24px_-14px_rgba(0,0,0,.6)]">
+      <span className="text-ink-soft">{point.label}</span> <span className="font-semibold text-ink tabular-nums">{formatMoney(point.value, currency, { compact: true })}</span>
+    </p>
+  );
+}
+
+// Pinned above the plot and following the pointer sideways; it may rise past the chart but never below it.
+const miniTip = { position: { y: -28 }, allowEscapeViewBox: { x: false, y: true }, isAnimationActive: false, wrapperStyle: { zIndex: 20, pointerEvents: "none" } } as const;
+
 // Small columns for a tile: month labels under each bar, the value on hover, the open month at full strength.
 export function MiniColumns({
   data,
@@ -287,7 +301,6 @@ export function MiniColumns({
   limit?: number;
   height?: number;
 }) {
-  const series: Series[] = [{ key: "value", label: name, color }];
   const top = Math.max(limit ?? 0, ...data.map((d) => d.value), 1);
   return (
     <div style={{ height }} className="chart w-full">
@@ -296,9 +309,9 @@ export function MiniColumns({
           <XAxis dataKey="label" {...axis} tick={{ ...tick, fontSize: 10 }} interval={0} height={16} />
           <YAxis hide domain={[0, top * 1.05]} />
           <Tooltip
+            {...miniTip}
             cursor={{ fill: "color-mix(in srgb, var(--ink) 6%, transparent)" }}
-            wrapperStyle={{ zIndex: 20 }}
-            content={(p) => <Tip active={p.active} payload={p.payload} label={p.label} currency={currency} series={series} />}
+            content={(p) => <MiniTip active={p.active} payload={p.payload} currency={currency} />}
           />
           {limit != null && <ReferenceLine y={limit} stroke="var(--ink-soft)" strokeWidth={1} />}
           <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={16} animationDuration={500} animationEasing="ease-out">
@@ -328,7 +341,6 @@ export function MiniTrend({
   color?: string;
 }) {
   if (data.length < 2) return null;
-  const series: Series[] = [{ key: "value", label: name, color }];
   const gid = `mt-${name.replace(/\W/g, "")}`;
   return (
     <div className="w-full">
@@ -344,9 +356,9 @@ export function MiniTrend({
             <YAxis hide domain={["dataMin", "dataMax"]} />
             <XAxis dataKey="label" hide />
             <Tooltip
+              {...miniTip}
               cursor={{ stroke: "var(--ash)", strokeWidth: 1 }}
-              wrapperStyle={{ zIndex: 20 }}
-              content={(p) => <Tip active={p.active} payload={p.payload} label={p.label} currency={currency} series={series} />}
+              content={(p) => <MiniTip active={p.active} payload={p.payload} currency={currency} />}
             />
             <Area
               dataKey="value"

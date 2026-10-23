@@ -3,7 +3,7 @@
 import { CloudOff, Plus, RotateCw } from "lucide-react";
 import { useCallback, useState } from "react";
 import { dayLabel } from "@/lib/core/dates";
-import { formatMoney, toNumber } from "@/lib/core/money";
+import { formatMoney, plainAmount, toNumber } from "@/lib/core/money";
 import { balanceSplit } from "@/lib/modules/accounts/constants";
 import { type TxValues, TransactionForm } from "../(app)/transactions/transaction-form";
 import { AccountIcon } from "../_components/account-icon";
@@ -162,7 +162,7 @@ export function OfflineApp() {
                         values: {
                           id: t.id,
                           direction: n < 0 ? "out" : "in",
-                          amount: Math.abs(n).toFixed(2),
+                          amount: plainAmount(n),
                           description: t.description,
                           occurredOn: t.occurredOn,
                           accountId: t.accountId,

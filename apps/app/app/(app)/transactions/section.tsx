@@ -148,7 +148,11 @@ export async function TransactionsSection({
   const toolbar = (
     <div className="mb-5 flex flex-col gap-4">
       {!lockAccount && live.length > 1 && (
-        <nav aria-label="Accounts" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        // Phones scroll the chips sideways, with a fade hinting at more; wider screens wrap them, since a mouse wheel cannot scroll sideways.
+        <nav
+          aria-label="Accounts"
+          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [mask-image:linear-gradient(to_right,#000_85%,transparent)] [scrollbar-width:none] md:flex-wrap md:overflow-visible md:[mask-image:none]"
+        >
           {[{ id: undefined, name: "All accounts", kind: null, icon: null, color: null }, ...live].map((a) => {
             const on = s.account === a.id;
             return (
@@ -213,6 +217,7 @@ export async function TransactionsSection({
       aiOn={aiEnabled}
       defaultAccount={lockAccount}
       showAccount={!accountId}
+      showBalance={Boolean(accountId)}
       filters={{
         base: here,
         values: { q: s.q, category: s.category, budget: s.budget, type: s.type, min: s.min, max: s.max },

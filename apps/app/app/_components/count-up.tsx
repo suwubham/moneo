@@ -22,11 +22,14 @@ export function CountUp({
     const el = ref.current;
     if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches || Math.abs(value) < 1) return;
     let raf = 0;
+    const whole = Math.round(value * 100) % 100 === 0;
     const t0 = performance.now();
     const tick = (t: number) => {
       const p = Math.min(1, (t - t0) / 1100);
       const eased = 1 - (1 - p) ** 3;
-      el.textContent = formatMoney(value * eased, currency, { sign, compact });
+      // A whole amount counts in whole steps, so cents never flash in and out on the way.
+      const shown = whole ? Math.round(value * eased) : value * eased;
+      el.textContent = formatMoney(shown, currency, { sign, compact });
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

@@ -4,22 +4,27 @@ import { categories } from "@/lib/modules/categories/schema";
 import { transactions } from "@/lib/modules/transactions/schema";
 import { type BudgetKind, budgets } from "./schema";
 
+// Which transactions a budget counts. Total and category budgets count money out. A picked budget counts everything
+// added to it, so money back on it (a refund, a friend paying their share) lowers what it spent, as in Cashew.
+function counts(t: typeof transactions) {
+  return sql`case ${budgets.kind}
+    when 'picked' then ${t.budgetId} = ${budgets.id}
+    when 'total' then ${t.amount} < 0 and not ${t.excludeFromBudgets}
+    else ${t.amount} < 0 and ${t.categoryId} = ${budgets.categoryId} and not ${t.excludeFromBudgets}
+  end`;
+}
+
 export type BudgetProgress = Awaited<ReturnType<typeof listBudgetProgress>>[number];
 
 export function listBudgetProgress(c: Conn, userId: string, range: { start: string; end: string }) {
   const t = transactions;
-  // Money out in the month that counts towards each budget, by its kind.
-  const spent = sql<string>`coalesce((
+  // What the month spent against each budget, by its kind (see `counts`). Never below zero.
+  const spent = sql<string>`greatest(coalesce((
     select -sum(${t.amount}) from ${t}
     where ${t.userId} = ${budgets.userId}
       and ${t.occurredOn} >= ${range.start} and ${t.occurredOn} < ${range.end}
-      and ${t.amount} < 0
-      and case ${budgets.kind}
-        when 'picked' then ${t.budgetId} = ${budgets.id}
-        when 'total' then not ${t.excludeFromBudgets}
-        else ${t.categoryId} = ${budgets.categoryId} and not ${t.excludeFromBudgets}
-      end
-  ), 0)::numeric(14,2)`;
+      and ${counts(t)}
+  ), 0), 0)::numeric(14,2)`;
 
   return c
     .select({
@@ -43,19 +48,11 @@ export function budgetHistory(c: Conn, userId: string, range: { start: string; e
   const t = transactions;
   const month = sql<string>`to_char(${t.occurredOn}, 'YYYY-MM')`;
   return c
-    .select({ budgetId: budgets.id, month, spent: sql<string>`(-sum(${t.amount}))::numeric(14,2)` })
+    .select({ budgetId: budgets.id, month, spent: sql<string>`greatest(-sum(${t.amount}), 0)::numeric(14,2)` })
     .from(budgets)
     .innerJoin(
       t,
-      and(
-        eq(t.userId, budgets.userId),
-        sql`${t.occurredOn} >= ${range.start} and ${t.occurredOn} < ${range.end} and ${t.amount} < 0`,
-        sql`case ${budgets.kind}
-          when 'picked' then ${t.budgetId} = ${budgets.id}
-          when 'total' then not ${t.excludeFromBudgets}
-          else ${t.categoryId} = ${budgets.categoryId} and not ${t.excludeFromBudgets}
-        end`,
-      ),
+      and(eq(t.userId, budgets.userId), sql`${t.occurredOn} >= ${range.start} and ${t.occurredOn} < ${range.end}`, counts(t)),
     )
     .where(eq(budgets.userId, userId))
     .groupBy(budgets.id, month);

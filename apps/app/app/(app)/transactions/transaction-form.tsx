@@ -34,6 +34,7 @@ export function TransactionForm({
   categories,
   budgets,
   queue = false,
+  onMoveMoney,
   onDone,
 }: {
   values: TxValues;
@@ -42,6 +43,8 @@ export function TransactionForm({
   budgets: Option[];
   // Always save to the device outbox (the offline page has no server to talk to).
   queue?: boolean;
+  // Shown as a third choice, "move money", for a new transaction.
+  onMoveMoney?: () => void;
   onDone: () => void;
 }) {
   const [saved, action] = useActionState(saveTransactionAction, null);
@@ -78,13 +81,18 @@ export function TransactionForm({
       {values.id && <input type="hidden" name="id" value={values.id} />}
       <fieldset>
         <legend className="sr-only">Direction</legend>
-        <Segmented count={2} index={direction === "out" ? 0 : 1} className="bg-night">
+        <Segmented count={onMoveMoney ? 3 : 2} index={direction === "out" ? 0 : 1} className="bg-night">
           {(["out", "in"] as const).map((d) => (
             <label key={d} className={`${segItem(direction === d)} cursor-pointer py-2`}>
               <input type="radio" name="direction" value={d} checked={direction === d} onChange={() => setDirection(d)} className="sr-only" />
               {d === "out" ? "money out" : "money in"}
             </label>
           ))}
+          {onMoveMoney && (
+            <button type="button" onClick={onMoveMoney} className={`${segItem(false)} py-2`}>
+              move money
+            </button>
+          )}
         </Segmented>
       </fieldset>
       <div className="grid grid-cols-[1fr_auto] gap-3">
