@@ -4,12 +4,13 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { requireProfile } from "@/lib/core/auth";
 import { dayLabel, monthLabel, monthOf, shiftDays, todayIso } from "@/lib/core/dates";
 import { toNumber } from "@/lib/core/money";
-import { kindLabels } from "@/lib/modules/accounts/constants";
+import { isOwed, kindLabels } from "@/lib/modules/accounts/constants";
 import { getAccounts } from "@/lib/modules/accounts/service";
 import { getBalanceHistory } from "@/lib/modules/reports/service";
 import { getTotals } from "@/lib/modules/transactions/service";
 import { AccountIcon } from "../../../_components/account-icon";
 import { BalanceChart } from "../../../_components/charts";
+import { CountUp } from "../../../_components/count-up";
 import { Empty } from "../../../_components/empty";
 import { AccountBalance, Money } from "../../../_components/money";
 import { Reveal } from "../../../_components/reveal";
@@ -76,12 +77,14 @@ async function Account({ params, searchParams }: Pick<PageProps<"/accounts/[id]"
   const net = toNumber(sum.moneyIn) - toNumber(sum.moneyOut);
   const periodLabel = s.range ? `${dayLabel(s.range.from, today)} – ${dayLabel(s.range.to, today)}` : monthLabel(s.month);
 
+  // The balance where the period ends leads; for a card or loan that is what you owe.
+  const owed = isOwed(account.kind);
+  const lead = endBal == null ? null : owed ? -endBal : endBal;
+  const leadNote = owed && endBal != null ? (endBal < 0 ? "owed" : endBal > 0 ? "in credit" : "nothing owed") : null;
   const stats: [string, React.ReactNode][] = [
     [`start of period`, startBal == null ? "—" : <Money value={startBal} currency={profile.currency} />],
-    [end === today ? "today" : "end of period", endBal == null ? "—" : <Money value={endBal} currency={profile.currency} />],
     ["money in", <Money key="in" value={sum.moneyIn} currency={profile.currency} />],
     ["money out", <Money key="out" value={sum.moneyOut} currency={profile.currency} />],
-    ["net change", <Money key="net" value={net} currency={profile.currency} sign tone />],
   ];
 
   return (
@@ -126,11 +129,28 @@ async function Account({ params, searchParams }: Pick<PageProps<"/accounts/[id]"
         <h2 id="period" className="label">
           balance · {periodLabel}
         </h2>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
-          {stats.map(([k, v], i) => (
-            <div key={k} className={i === 0 ? "col-span-2 sm:col-span-1" : ""}>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div>
+            <p className="label">{end === today ? "today" : "end of period"}</p>
+            {lead == null ? (
+              <p className="mt-1 text-[clamp(2.2rem,5vw,3.4rem)] leading-none font-extrabold tracking-[-0.045em]">—</p>
+            ) : (
+              <p className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <CountUp value={lead} currency={profile.currency} className="text-[clamp(2.2rem,5vw,3.4rem)] leading-none font-extrabold tracking-[-0.045em]" />
+                {leadNote && <span className="label">{leadNote}</span>}
+              </p>
+            )}
+          </div>
+          <p className="inline-flex items-center gap-2 rounded-full border border-line bg-night/60 px-3.5 py-1.5">
+            <span className="label">change</span>
+            <Money value={net} currency={profile.currency} sign tone className="font-bold" />
+          </p>
+        </div>
+        <dl className="grid grid-cols-3 gap-x-6 gap-y-4 border-t border-line pt-4">
+          {stats.map(([k, v]) => (
+            <div key={k} className="min-w-0">
               <dt className="label">{k}</dt>
-              <dd className="mt-1 text-[clamp(1.1rem,2vw,1.5rem)] font-extrabold tracking-[-0.03em]">{v}</dd>
+              <dd className="mt-1 truncate text-[clamp(1rem,1.8vw,1.25rem)] font-extrabold tracking-[-0.03em]">{v}</dd>
             </div>
           ))}
         </dl>

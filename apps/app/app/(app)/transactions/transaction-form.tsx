@@ -163,10 +163,8 @@ export function TransactionForm({
       ) : (
         values.budgetId && <input type="hidden" name="budgetId" value={values.budgetId} />
       )}
-      <label className="flex cursor-pointer items-center gap-2.5 text-[.95rem] text-ink-soft">
-        <input type="checkbox" name="excludeFromBudgets" defaultChecked={values.excludeFromBudgets} className="size-4 accent-steel" />
-        Leave out of category and total budgets (for example, a transfer between your accounts)
-      </label>
+      {/* Transfers stay out of budgets on their own. A row an import left out (Cashew exclusions) keeps that when edited. */}
+      {values.excludeFromBudgets && <input type="hidden" name="excludeFromBudgets" value="on" />}
       <Field label="note" name="note" state={state}>
         <textarea id="note" name="note" rows={2} maxLength={500} defaultValue={values.note ?? ""} className={textarea} />
       </Field>
