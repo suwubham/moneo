@@ -1,7 +1,8 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // The offline page and install files hold no personal data and must load without a session.
-const isPublic = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/api/health", "/offline", "/manifest.webmanifest", "/icon(.*)", "/apple-icon(.*)", "/sw.js"]);
+// The inbound webhook comes from Resend, not a browser; it checks Resend's signature itself.
+const isPublic = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/api/health", "/api/inbound(.*)", "/offline", "/manifest.webmanifest", "/icon(.*)", "/apple-icon(.*)", "/sw.js"]);
 const isApi = createRouteMatcher(["/api(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {

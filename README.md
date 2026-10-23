@@ -57,6 +57,8 @@ Other commands: `npm run db:migrate`, `npm run db:studio`, `npm test` (unit test
 | `APP_GOOGLE_CREDENTIALS_JSON` | app | Service account key JSON (needs the Vertex AI User role). Empty uses Application Default Credentials. |
 | `APP_AI_MODEL` | app | Gemini model id on Vertex. Default `gemini-3.6-flash` (steady ~1 s per call on Vertex `global`; 3.8 was 2–30 s when tested). |
 | `APP_AI_HOURLY_LIMIT` | app | Chat messages per user per hour in production. Default 60. |
+| `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET` | app | Resend receiving, for bank emails. The key reads received emails; the secret checks webhook signatures. |
+| `APP_INBOUND_DOMAIN` | app | Domain of inbox addresses, e.g. `<id>.resend.app`. Empty (or either Resend value, or `GOOGLE_CLOUD_PROJECT`, empty) turns bank emails off. |
 | `APP_SITE_URL` | both | Landing page URL. The app sends people here after sign out. |
 | `APP_WEB_URL` | both | App URL. The landing page links here to sign in and sign up. |
 
@@ -68,3 +70,11 @@ Other commands: `npm run db:migrate`, `npm run db:studio`, `npm test` (unit test
 - **Budget suggestions** (Budgets): limits based on the last three months. Nothing is saved until you add one.
 
 The sandbox for maths and charts will be another node next to `tools` in `lib/modules/assistant/graph.ts`.
+
+## Bank emails
+
+Each person can get a private address (`<token>@APP_INBOUND_DOMAIN`, in Settings) and forward their bank's card alerts to it from Gmail. Resend receives the mail and calls `POST /api/inbound/resend`, which checks the Svix signature, finds the person from the address (`received_for`, since a forwarded email keeps its original `to`), and fetches the body from Resend's API.
+
+Gemini reads the email (`lib/modules/inbound/read.ts`) with the person's accounts, categories and hints ("Corner Store" → "Snacks, category Food", "card ending 1234" → "my savings account") and returns a structured draft. `settleDraft` in `parse.ts` checks it: ids must be the person's own, the amount and date must be valid, and the currency must be theirs. A draft that passes is saved straight away; anything else waits under "needs you" in Settings, already filled in. Gmail's forwarding confirmation code is caught before the model and shown there too. `inbox_emails` keeps only what was read, never the email, and its unique provider id stops a retried webhook from adding twice. A failed model call answers 502, so Resend tries again later.
+
+To try it locally, point a Resend webhook at an ngrok URL for the dev server and send mail to your address.

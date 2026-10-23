@@ -9,6 +9,7 @@ import { log } from "@/lib/core/log";
 import { currencies } from "@/lib/core/money";
 import { categoryCreate, categoryUpdate, createCategory, deleteCategory, reorderCategories, updateCategory } from "@/lib/modules/categories/service";
 import { type ImportResult, importCashew } from "@/lib/modules/imports/service";
+import { addFromEmail, addFromEmailInput, createHint, deleteHint, dismissEmail, hintInput, newAddress, updateHint } from "@/lib/modules/inbound/service";
 import { deleteAllData, setCurrency } from "@/lib/modules/profiles/service";
 
 export async function currencyAction(_: ActionState, form: FormData): Promise<ActionState> {
@@ -83,6 +84,52 @@ export async function reorderCategoriesAction(ids: string[]): Promise<ActionStat
   return runAction("reorder_categories", async () => {
     const { id: userId } = await requireUser();
     await reorderCategories(userId, parseInput(z.array(z.uuid()).max(500), ids));
+    refresh();
+  });
+}
+
+export async function newAddressAction(): Promise<ActionState<string>> {
+  return runAction("new_inbox_address", async () => {
+    const { id: userId } = await requireUser();
+    const address = await newAddress(userId);
+    refresh();
+    return address;
+  });
+}
+
+// Adds a hint, or changes one when the form carries its id.
+export async function saveHintAction(_: ActionState, form: FormData): Promise<ActionState> {
+  return runAction("save_hint", async () => {
+    const { id: userId } = await requireUser();
+    const input = parseForm(hintInput, form);
+    const id = form.get("id");
+    if (id) await updateHint(userId, parseInput(z.uuid(), id), input);
+    else await createHint(userId, input);
+    refresh();
+  });
+}
+
+export async function deleteHintAction(id: string): Promise<ActionState> {
+  return runAction("delete_hint", async () => {
+    const { id: userId } = await requireUser();
+    await deleteHint(userId, parseInput(z.uuid(), id));
+    refresh();
+  });
+}
+
+export async function addFromEmailAction(_: ActionState, form: FormData): Promise<ActionState> {
+  return runAction("add_from_email", async () => {
+    const { id: userId } = await requireUser();
+    const id = parseInput(z.uuid(), form.get("id"));
+    await addFromEmail(userId, id, parseForm(addFromEmailInput, form));
+    refresh();
+  });
+}
+
+export async function dismissEmailAction(id: string): Promise<ActionState> {
+  return runAction("dismiss_email", async () => {
+    const { id: userId } = await requireUser();
+    await dismissEmail(userId, parseInput(z.uuid(), id));
     refresh();
   });
 }

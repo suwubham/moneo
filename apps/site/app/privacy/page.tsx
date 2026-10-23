@@ -53,6 +53,16 @@ export default function Privacy() {
             transactions as listed above, and deletes the file straight away.
           </p>
 
+          <h2 className={h2}>Bank emails</h2>
+          <p className={p}>
+            If you forward your bank&apos;s alerts to your Moneo address, they arrive through Resend, an email service, which
+            holds a copy of each email. Our server sends the email&apos;s subject and text, with your account and category names
+            and your hints, to Google Cloud&apos;s Vertex AI, where a Gemini model reads the amount, date, store, account and
+            category. We save what it read and the transaction it makes, and we do not keep the email itself. We also keep the
+            hints you write. Mail from anyone who knows your address arrives the same way, so keep it private; you can replace
+            it in Settings.
+          </p>
+
           <h2 className={h2}>On your device</h2>
           <p className={p}>
             So Moneo still works without internet, your browser keeps a copy of your accounts, budgets and the last
@@ -83,7 +93,7 @@ export default function Privacy() {
           <h2 className={h2}>Deleting your data</h2>
           <p className={p}>
             You can delete your data from Settings in the app. That removes your accounts, transactions, budgets,
-            categories and chats from our database.
+            categories, chats and what we read from bank emails from our database.
           </p>
 
           <h2 className={h2}>Questions</h2>

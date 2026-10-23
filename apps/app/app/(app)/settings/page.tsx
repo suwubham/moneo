@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { requireProfile } from "@/lib/core/auth";
-import { settings } from "@/lib/core/config";
+import { inboundEnabled, settings } from "@/lib/core/config";
+import { getAccounts } from "@/lib/modules/accounts/service";
 import { getCategories } from "@/lib/modules/categories/service";
+import { getInbox } from "@/lib/modules/inbound/service";
 import { PageTitle } from "../../_components/page-title";
 import { Reveal } from "../../_components/reveal";
 import { ListSkeleton } from "../../_components/skeleton";
 import { card } from "../../_components/styles";
 import { AddCategory, CategoryChip, CurrencyForm, DeleteEverything, ImportCashew, ReorderCategories } from "./settings-ui";
+import { Address, ForwardCode, Hints, Recent, ToCheck } from "./inbox-ui";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -58,6 +61,7 @@ async function Settings() {
           <AddCategory />
         </section>
 
+        {inboundEnabled && <BankEmails userId={profile.id} categories={categories} />}
       </div>
       <div className="flex flex-col gap-4" style={{ "--i": 1 } as React.CSSProperties}>
         <section className={section} aria-labelledby="money">
@@ -90,5 +94,42 @@ async function Settings() {
         </section>
       </div>
     </div>
+  );
+}
+
+async function BankEmails({ userId, categories }: { userId: string; categories: Awaited<ReturnType<typeof getCategories>> }) {
+  const [inbox, accounts] = await Promise.all([getInbox(userId), getAccounts(userId)]);
+  const open = accounts.filter((a) => !a.archivedAt).map((a) => ({ id: a.id, name: a.name }));
+  const waiting = inbox.emails.filter((e) => e.status === "review");
+  // Only the newest code matters; Gmail sends a fresh one each time the address is added again.
+  const code = inbox.emails.find((e) => e.status === "code")?.code;
+  const recent = inbox.emails.filter((e) => e.status !== "review").slice(0, 8);
+
+  return (
+    <section className={`${section} mt-4`} aria-labelledby="bank-emails">
+      <h2 id="bank-emails" className={heading}>
+        Bank emails
+      </h2>
+      <p className="mb-5 max-w-[60ch] text-ink-soft">
+        Forward your bank&apos;s alerts to this address and the AI turns each one into a transaction. In Gmail, add it under Settings →
+        Forwarding, then make a filter for your bank&apos;s alerts that forwards them here. We keep what was read from each email, not the email.
+      </p>
+      <Address address={inbox.address} />
+      {code && (
+        <div className="mt-4">
+          <ForwardCode code={code} />
+        </div>
+      )}
+      <ToCheck emails={waiting} accounts={open} categories={categories.map((c) => ({ id: c.id, name: c.name }))} />
+
+      <h3 className="label mt-6 mb-1">hints</h3>
+      <p className="mb-3 text-[.9rem] text-ink-soft">
+        Tell the AI what things in your emails mean: a store&apos;s real name and category, or which account a card belongs to.
+      </p>
+      <Hints hints={inbox.hints} />
+
+      <h3 className="label mt-6 mb-2">recent</h3>
+      <Recent emails={recent} />
+    </section>
   );
 }

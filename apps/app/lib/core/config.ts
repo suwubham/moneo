@@ -19,6 +19,12 @@ const schema = z.object({
   aiModel: z.preprocess(blank, z.string().default("gemini-3.6-flash")),
   aiHourlyLimit: z.preprocess(blank, z.coerce.number().int().positive().default(60)),
 
+  // Bank emails forwarded to <token>@<inboundDomain> arrive through Resend and a model reads them.
+  // Any of the three empty, or the AI switched off, turns it off.
+  resendApiKey: opt,
+  resendWebhookSecret: opt,
+  inboundDomain: opt,
+
   siteUrl: z.preprocess(blank, z.url().default("http://localhost:3030")),
   webUrl: z.preprocess(blank, z.url().default("http://localhost:3031")),
 });
@@ -35,6 +41,9 @@ export function loadSettings(env: NodeJS.ProcessEnv = process.env): Settings {
     googleCredentialsJson: env.APP_GOOGLE_CREDENTIALS_JSON,
     aiModel: env.APP_AI_MODEL,
     aiHourlyLimit: env.APP_AI_HOURLY_LIMIT,
+    resendApiKey: env.RESEND_API_KEY,
+    resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
+    inboundDomain: env.APP_INBOUND_DOMAIN,
     siteUrl: env.APP_SITE_URL,
     webUrl: env.APP_WEB_URL,
   });
@@ -44,3 +53,4 @@ export const settings = loadSettings();
 
 export const isProduction = settings.environment === "production";
 export const aiEnabled = Boolean(settings.gcpProject);
+export const inboundEnabled = aiEnabled && Boolean(settings.resendApiKey && settings.resendWebhookSecret && settings.inboundDomain);
