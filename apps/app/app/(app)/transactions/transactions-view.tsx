@@ -1,17 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ArrowLeftRight, Plus } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
 import { formatMoney, toNumber } from "@/lib/core/money";
+import type { AccountKind } from "@/lib/modules/accounts/constants";
 import { CategoryIcon } from "../../_components/category-icon";
+import { balanceText } from "../../_components/money";
 import { Drawer } from "../../_components/drawer";
 import { PendingChanges } from "../../_components/pending-changes";
 import { badge, btnPrimary, btnSoft, card } from "../../_components/styles";
 import { draftTransactionAction } from "./actions";
+import { type Editing, EditorForm, TransferIcon, editorFor, newTransfer, transferLabel } from "./editor";
 import { FilterBar } from "./filter-bar";
-import { type CategoryOption, type Option, TransactionForm, type TxValues } from "./transaction-form";
+import type { CategoryOption, Option, TxValues } from "./transaction-form";
+import type { AccountOption } from "./transfer-form";
 
 export type Row = {
   id: string;
@@ -21,6 +25,7 @@ export type Row = {
   note: string | null;
   accountId: string;
   accountName: string;
+  accountKind: AccountKind;
   categoryId: string | null;
   categoryName: string | null;
   categoryIcon: string | null;
@@ -28,13 +33,18 @@ export type Row = {
   budgetId: string | null;
   budgetName: string | null;
   excludeFromBudgets: boolean;
+  // The account's balance just after this row.
+  balance: string;
+  transferId: string | null;
+  transferAccountId: string | null;
+  transferAccountName: string | null;
 };
 
 export type Group = { day: string; label: string; rows: Row[]; cents: number };
 
 type Props = {
   groups: Group[];
-  accounts: Option[];
+  accounts: AccountOption[];
   categories: CategoryOption[];
   budgets: Option[];
   currency: string;
@@ -64,9 +74,9 @@ function blank(today: string, accounts: Option[], account?: string): TxValues {
 }
 
 export function TransactionsView({ groups, accounts, categories, budgets, currency, today, aiOn, defaultAccount, showAccount = true, filters, toolbar, footer }: Props) {
-  const [editing, setEditing] = useState<{ title: string; values: TxValues; key: number } | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
   const close = useCallback(() => setEditing(null), []);
-  const open = useCallback((title: string, values: TxValues) => setEditing({ title, values, key: Date.now() }), []);
+  const open = useCallback((title: string, values: TxValues) => setEditing({ kind: "tx", title, values, key: Date.now() }), []);
 
   // "n" opens a new transaction from anywhere on the page.
   useEffect(() => {
@@ -95,6 +105,9 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
           <Plus className="size-4" aria-hidden /> Add transaction
           <kbd className="hidden rounded border border-on-accent/30 px-1.5 font-mono text-[.7rem] lg:inline">n</kbd>
         </button>
+        <button type="button" className={btnSoft} disabled={accounts.length < 2} onClick={() => setEditing(newTransfer(today, defaultAccount))}>
+          <ArrowLeftRight className="size-4" aria-hidden /> Move money
+        </button>
       </div>
 
       <div className="mb-4">
@@ -116,43 +129,36 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
                   const n = toNumber(t.amount);
                   return (
                     <li key={t.id} style={{ "--i": i } as React.CSSProperties}>
-                      <button
-                        type="button"
-                        className={row}
-                        onClick={() =>
-                          open("Edit transaction", {
-                            id: t.id,
-                            direction: n < 0 ? "out" : "in",
-                            amount: Math.abs(n).toFixed(2),
-                            description: t.description,
-                            occurredOn: t.occurredOn,
-                            accountId: t.accountId,
-                            categoryId: t.categoryId,
-                            note: t.note,
-                            budgetId: t.budgetId,
-                            excludeFromBudgets: t.excludeFromBudgets,
-                          })
-                        }
-                      >
-                        <CategoryIcon category={t.categoryName ? { name: t.categoryName, icon: t.categoryIcon, color: t.categoryColor } : null} />
+                      <button type="button" className={row} onClick={() => setEditing(editorFor(t))}>
+                        {t.transferId ? (
+                          <TransferIcon />
+                        ) : (
+                          <CategoryIcon category={t.categoryName ? { name: t.categoryName, icon: t.categoryIcon, color: t.categoryColor } : null} />
+                        )}
                         <span className="min-w-0">
                           <span className="block truncate font-semibold">{t.description}</span>
                           <span className="label flex min-w-0 items-center gap-1.5">
-                            <span className="truncate">{t.categoryName ?? "uncategorised"}</span>
+                            <span className="truncate">{t.transferId ? transferLabel(t) : (t.categoryName ?? "uncategorised")}</span>
                             {showAccount && <span className="hidden truncate sm:inline">· {t.accountName}</span>}
                             {t.budgetName && (
                               <span className="hidden sm:inline">
                                 <span className={badge}>{t.budgetName}</span>
                               </span>
                             )}
-                            {t.excludeFromBudgets && (
+                            {t.excludeFromBudgets && !t.transferId && (
                               <span className="hidden sm:inline">
                                 <span className={badge}>not in budgets</span>
                               </span>
                             )}
                           </span>
                         </span>
-                        <span className={`text-right font-semibold tabular-nums ${n > 0 ? "text-steel" : ""}`}>{formatMoney(n, currency, { sign: n > 0 })}</span>
+                        <span className="text-right tabular-nums">
+                          <span className={`block font-semibold ${n > 0 ? "text-steel" : ""}`}>{formatMoney(n, currency, { sign: n > 0 })}</span>
+                          <span className="label block">
+                            <span className="sr-only">{t.accountName} balance after: </span>
+                            {balanceText(t.accountKind, t.balance, currency)}
+                          </span>
+                        </span>
                       </button>
                     </li>
                   );
@@ -168,7 +174,7 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
       <Drawer open={editing !== null} onClose={close} title={editing?.title ?? ""}>
         {editing && (
           <>
-            {editing.values.id && (
+            {editing.kind === "tx" && editing.values.id && (
               <Link
                 href={`/assistant?q=${encodeURIComponent(`Tell me about my "${editing.values.description}" spending. How often and how much?`)}`}
                 className="label mb-5 inline-block underline"
@@ -176,7 +182,7 @@ export function TransactionsView({ groups, accounts, categories, budgets, curren
                 ask the assistant about this →
               </Link>
             )}
-            <TransactionForm key={editing.key} values={editing.values} accounts={accounts} categories={categories} budgets={budgets} onDone={close} />
+            <EditorForm editing={editing} accounts={accounts} categories={categories} budgets={budgets} currency={currency} onDone={close} />
           </>
         )}
       </Drawer>

@@ -4,7 +4,7 @@ import { Pencil } from "lucide-react";
 import { requireProfile } from "@/lib/core/auth";
 import { todayIso } from "@/lib/core/dates";
 import { toNumber } from "@/lib/core/money";
-import { accountLook, kindLabels } from "@/lib/modules/accounts/constants";
+import { accountLook, balanceSplit, isOwed, kindLabels } from "@/lib/modules/accounts/constants";
 import { categoryColors } from "@/lib/modules/categories/look";
 import { getAccounts } from "@/lib/modules/accounts/service";
 import { getBalanceHistory } from "@/lib/modules/reports/service";
@@ -13,7 +13,7 @@ import { colorVar } from "../../_components/category-icon";
 import { MiniTrend } from "../../_components/charts";
 import { CountUp } from "../../_components/count-up";
 import { Empty } from "../../_components/empty";
-import { Money } from "../../_components/money";
+import { AccountBalance, Money } from "../../_components/money";
 import { PageTitle } from "../../_components/page-title";
 import { Reveal } from "../../_components/reveal";
 import { Skeleton } from "../../_components/skeleton";
@@ -57,7 +57,7 @@ async function Accounts() {
   const accounts = await getAccounts(profile.id);
   const live = accounts.filter((a) => !a.archivedAt);
   const archived = accounts.filter((a) => a.archivedAt);
-  const total = live.reduce((s, a) => s + toNumber(a.balance), 0);
+  const split = balanceSplit(live);
 
   if (accounts.length === 0) {
     return (
@@ -74,7 +74,15 @@ async function Accounts() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="label">
-          {live.length} active · net <Money value={total} currency={profile.currency} className="text-ink" />
+          {live.length} active
+          {split.hasOwed && (
+            <>
+              {" "}
+              · you have <Money value={split.have} currency={profile.currency} className="text-ink" /> · you owe{" "}
+              <Money value={split.owed} currency={profile.currency} className="text-ink" />
+            </>
+          )}{" "}
+          · net <Money value={split.net} currency={profile.currency} className="text-ink" />
         </p>
         <ReorderAccounts accounts={live.map((a) => ({ id: a.id, name: a.name, kind: a.kind, icon: a.icon, color: a.color }))} />
       </div>
@@ -101,9 +109,15 @@ async function Accounts() {
                 data={(history.get(a.id) ?? []).map((p) => ({ key: p.date, label: p.date === today ? "today" : shortDate(p.date), value: p.balance }))}
               />
               <span>
-                <CountUp value={toNumber(a.balance)} currency={profile.currency} className="block text-[2rem] leading-none font-extrabold tracking-[-0.05em]" />
+                {/* A card or loan counts up what you owe, as a plain amount. */}
+                <CountUp
+                  value={isOwed(a.kind) ? -toNumber(a.balance) : toNumber(a.balance)}
+                  currency={profile.currency}
+                  className="block text-[2rem] leading-none font-extrabold tracking-[-0.05em]"
+                />
                 <span className="label mt-2 flex items-center justify-between">
                   <span>
+                    {isOwed(a.kind) && (toNumber(a.balance) < 0 ? "owed · " : toNumber(a.balance) > 0 ? "in credit · " : "nothing owed · ")}
                     {a.count} transaction{a.count === 1 ? "" : "s"}
                   </span>
                   <span className="transition-transform duration-300 ease-soft group-hover:translate-x-1">open →</span>
@@ -133,7 +147,7 @@ async function Accounts() {
                   className="flex w-full items-center justify-between gap-4 rounded-[1.1rem] border border-dashed border-ash px-5 py-3 text-ink-soft hover:text-ink"
                 >
                   <span>{a.name}</span>
-                  <Money value={a.balance} currency={profile.currency} />
+                  <AccountBalance kind={a.kind} balance={a.balance} currency={profile.currency} />
                 </Link>
               </li>
             ))}

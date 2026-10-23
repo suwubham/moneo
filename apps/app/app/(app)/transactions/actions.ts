@@ -5,7 +5,16 @@ import { z } from "zod";
 import { type ActionState, parseForm, parseInput, runAction } from "@/lib/core/action";
 import { requireUser } from "@/lib/core/auth";
 import { type Draft, draftTransaction } from "@/lib/modules/ai/quick-add";
-import { createTransaction, deleteTransaction, transactionInput, updateTransaction } from "@/lib/modules/transactions/service";
+import {
+  createTransaction,
+  createTransfer,
+  deleteTransaction,
+  deleteTransfer,
+  transactionInput,
+  transferInput,
+  updateTransaction,
+  updateTransfer,
+} from "@/lib/modules/transactions/service";
 
 export async function saveTransactionAction(_: ActionState, form: FormData): Promise<ActionState> {
   return runAction("save_transaction", async () => {
@@ -22,6 +31,25 @@ export async function deleteTransactionAction(id: string): Promise<ActionState> 
   return runAction("delete_transaction", async () => {
     const { id: userId } = await requireUser();
     await deleteTransaction(userId, parseInput(z.uuid(), id));
+    refresh();
+  });
+}
+
+export async function saveTransferAction(_: ActionState, form: FormData): Promise<ActionState> {
+  return runAction("save_transfer", async () => {
+    const { id: userId } = await requireUser();
+    const input = parseForm(transferInput, form);
+    const id = form.get("id");
+    if (typeof id === "string" && id) await updateTransfer(userId, parseInput(z.uuid(), id), input);
+    else await createTransfer(userId, input);
+    refresh();
+  });
+}
+
+export async function deleteTransferAction(id: string): Promise<ActionState> {
+  return runAction("delete_transfer", async () => {
+    const { id: userId } = await requireUser();
+    await deleteTransfer(userId, parseInput(z.uuid(), id));
     refresh();
   });
 }

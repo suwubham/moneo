@@ -2,12 +2,22 @@ import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { monthOf } from "@/lib/core/dates";
 import type { AppError } from "@/lib/core/errors";
-import { createAccount, getAccounts } from "./accounts/service";
+import { balanceSplit } from "./accounts/constants";
+import { createAccount, getAccounts, updateAccount } from "./accounts/service";
 import { getBudgetProgress, saveBudget, statusOf, updateBudget } from "./budgets/service";
 import { getCategories } from "./categories/service";
 import { deleteAllData, getProfile } from "./profiles/service";
 import { getMonthlyFlow, getSpendingByCategory } from "./reports/service";
-import { createTransaction, getTotals, getTransactions } from "./transactions/service";
+import {
+  createTransaction,
+  createTransfer,
+  deleteTransaction,
+  getTotals,
+  getTransactions,
+  linkTransfers,
+  updateTransaction,
+  updateTransfer,
+} from "./transactions/service";
 
 const hasDb = Boolean(process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
 const me = `test_${Date.now()}`;
@@ -111,6 +121,128 @@ describe("finance modules against Postgres", { skip: !hasDb && "no DATABASE_URL"
       createTransaction(other, { ...base, accountId: (await getAccounts(other))[0]?.id ?? acct.id, categoryId: null, amount: "1.00", description: "x", budgetId: trip.id }),
       (e: AppError) => e.status === 404,
     );
+    await deleteAllData(id);
+  });
+
+  test("transfers move money between accounts and every row shows the balance after it", async () => {
+    const id = `${me}_transfer`;
+    await getProfile(id);
+    const everyday = await createAccount(id, { name: "Everyday", kind: "checking", openingBalance: "100.00" });
+    const savings = await createAccount(id, { name: "Savings", kind: "savings", openingBalance: "0" });
+    const base = { accountId: everyday.id, categoryId: null, note: null };
+    await createTransaction(id, { ...base, direction: "in", amount: "500.00", occurredOn: "2026-10-01", description: "Payroll" });
+    await createTransaction(id, { ...base, direction: "out", amount: "20.00", occurredOn: "2026-10-03", description: "Lunch" });
+    const move = { fromAccountId: everyday.id, toAccountId: savings.id, amount: "200.00", occurredOn: "2026-10-02", description: "Transfer", note: null };
+    const { transferId } = await createTransfer(id, move);
+
+    const balances = Object.fromEntries((await getAccounts(id)).map((a) => [a.name, a.balance]));
+    assert.deepEqual(balances, { Everyday: "380.00", Savings: "200.00" });
+
+    // Each row carries its own account's balance just after it. The two sides of a transfer share a time, so sort to compare.
+    const rows = await getTransactions(id, {}, { limit: 10, offset: 0 });
+    assert.deepEqual(
+      rows.map((r) => [r.description, r.amount, r.balance, r.transferAccountName]).sort(),
+      [
+        ["Lunch", "-20.00", "380.00", null],
+        ["Payroll", "500.00", "600.00", null],
+        ["Transfer", "-200.00", "400.00", "Savings"],
+        ["Transfer", "200.00", "200.00", "Everyday"],
+      ],
+    );
+    assert.deepEqual([rows[0].description, rows[3].description], ["Lunch", "Payroll"]);
+    // A filter hides rows but not the balance they built up.
+    const [lunch] = await getTransactions(id, { q: "lunch" }, { limit: 10, offset: 0 });
+    assert.equal(lunch.balance, "380.00");
+
+    // Across accounts a transfer is neither in nor out; for one account it is.
+    assert.deepEqual(await getTotals(id, { from: oct.start, to: oct.end }), { count: 4, moneyIn: "500.00", moneyOut: "20.00" });
+    assert.deepEqual(await getTotals(id, { from: oct.start, to: oct.end, accountId: everyday.id }), { count: 3, moneyIn: "500.00", moneyOut: "220.00" });
+    assert.deepEqual(await getSpendingByCategory(id, oct), [{ categoryId: null, name: "Uncategorised", icon: null, color: null, spent: "20.00", count: 1 }]);
+
+    // Its rows change only through the transfer, together.
+    const leg = rows.find((r) => r.transferId && r.amount === "200.00")!;
+    await assert.rejects(
+      updateTransaction(id, leg.id, { ...base, accountId: savings.id, direction: "in", amount: "1.00", occurredOn: "2026-10-02", description: "x" }),
+      (e: AppError) => e.code === "part_of_transfer",
+    );
+    await updateTransfer(id, transferId, { ...move, amount: "50.00" });
+    assert.deepEqual(Object.fromEntries((await getAccounts(id)).map((a) => [a.name, a.balance])), { Everyday: "530.00", Savings: "50.00" });
+    await assert.rejects(createTransfer(id, { ...move, toAccountId: everyday.id }));
+    await assert.rejects(createTransfer(other, move), (e: AppError) => e.status === 404);
+
+    // Deleting one side deletes both.
+    await deleteTransaction(id, leg.id);
+    assert.equal((await getTransactions(id, {}, { limit: 10, offset: 0 })).length, 2);
+    await deleteAllData(id);
+  });
+
+  test("a credit card holds what you owe: spending when you buy, a transfer when you pay", async () => {
+    const id = `${me}_card`;
+    await getProfile(id);
+    const bank = await createAccount(id, { name: "Bank", kind: "checking", openingBalance: "1000.00" });
+    // Typed as a plain amount; saved as owed.
+    const card = await createAccount(id, { name: "Card", kind: "credit", openingBalance: "250.00" });
+    assert.equal(card.openingBalance, "-250.00");
+    await updateAccount(id, card.id, { name: "Card", kind: "credit", openingBalance: "-250.00" });
+
+    const dining = (await getCategories(id)).find((c) => c.name === "Dining")!;
+    await createTransaction(id, { accountId: card.id, categoryId: dining.id, direction: "out", amount: "50.00", occurredOn: "2026-10-04", description: "Dinner", note: null });
+    await createTransfer(id, { fromAccountId: bank.id, toAccountId: card.id, amount: "300.00", occurredOn: "2026-10-20", description: "Card payment", note: null });
+
+    const accounts = await getAccounts(id);
+    assert.deepEqual(Object.fromEntries(accounts.map((a) => [a.name, a.balance])), { Bank: "700.00", Card: "0.00" });
+    assert.deepEqual(balanceSplit(accounts), { have: 700, owed: 0, net: 700, hasOwed: true });
+    // The dinner is spending once, when it was bought; paying the card is neither in nor out.
+    assert.deepEqual(await getTotals(id, { from: oct.start, to: oct.end }), { count: 3, moneyIn: "0.00", moneyOut: "50.00" });
+    assert.deepEqual(
+      (await getSpendingByCategory(id, oct)).map((r) => [r.name, r.spent]),
+      [["Dining", "50.00"]],
+    );
+    await deleteAllData(id);
+  });
+
+  test("have, owe and net keep cards and loans apart", () => {
+    assert.deepEqual(
+      balanceSplit([
+        { kind: "checking", balance: "1200.10" },
+        { kind: "savings", balance: "300.20" },
+        { kind: "credit", balance: "-450.30" },
+        { kind: "loan", balance: "-1000.00" },
+      ]),
+      { have: 1500.3, owed: 1450.3, net: 50, hasOwed: true },
+    );
+    assert.equal(balanceSplit([{ kind: "cash", balance: "5" }]).hasOwed, false);
+    // A card in credit adds to what you have; "you owe" never goes below zero.
+    assert.deepEqual(balanceSplit([{ kind: "checking", balance: "100" }, { kind: "credit", balance: "20" }]), { have: 120, owed: 0, net: 120, hasOwed: true });
+  });
+
+  test("loose in/out pairs between your accounts become transfers, and nothing else does", async () => {
+    const id = `${me}_pairs`;
+    await getProfile(id);
+    const a = await createAccount(id, { name: "A", kind: "checking", openingBalance: "0" });
+    const b = await createAccount(id, { name: "B", kind: "checking", openingBalance: "0" });
+    const fix = (await getCategories(id))[0];
+    const row = { categoryId: fix.id, note: null, occurredOn: "2026-10-07", description: "Moving money" };
+    await createTransaction(id, { ...row, accountId: a.id, direction: "out", amount: "20000.00" });
+    await createTransaction(id, { ...row, accountId: b.id, direction: "in", amount: "20000.00" });
+    // Not pairs: another description, the same account, or a different day.
+    await createTransaction(id, { ...row, accountId: b.id, direction: "in", amount: "50.00", description: "Refund" });
+    await createTransaction(id, { ...row, accountId: a.id, direction: "out", amount: "50.00", description: "Shop" });
+    await createTransaction(id, { ...row, accountId: a.id, direction: "out", amount: "10.00" });
+    await createTransaction(id, { ...row, accountId: a.id, direction: "in", amount: "10.00" });
+    await createTransaction(id, { ...row, accountId: b.id, direction: "in", amount: "10.00", occurredOn: "2026-10-08" });
+
+    const before = await getTotals(id, { from: oct.start, to: oct.end });
+    assert.equal(await linkTransfers(id), 1);
+    assert.equal(await linkTransfers(id), 0);
+
+    const after = await getTotals(id, { from: oct.start, to: oct.end });
+    assert.equal(after.count, before.count);
+    assert.deepEqual([after.moneyIn, after.moneyOut], [(Number(before.moneyIn) - 20000).toFixed(2), (Number(before.moneyOut) - 20000).toFixed(2)]);
+    const linked = await getTransactions(id, { direction: "transfer" }, { limit: 10, offset: 0 });
+    assert.deepEqual(linked.map((r) => r.amount).sort(), ["-20000.00", "20000.00"]);
+    assert.ok(linked.every((r) => r.excludeFromBudgets));
+    assert.equal((await getTransactions(id, { direction: "in" }, { limit: 10, offset: 0 })).length, 3);
     await deleteAllData(id);
   });
 

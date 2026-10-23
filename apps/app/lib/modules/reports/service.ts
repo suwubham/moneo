@@ -2,6 +2,7 @@ import "server-only";
 import { type Month, daysInMonth, shiftDays, shiftMonth } from "@/lib/core/dates";
 import { toNumber } from "@/lib/core/money";
 import { getDb } from "@/lib/db";
+import { balanceSplit } from "@/lib/modules/accounts/constants";
 import { getAccounts } from "@/lib/modules/accounts/service";
 import { balancesBefore, dailyNet, dailySpend, monthlyFlow, spendingByCategory } from "./repository";
 
@@ -23,10 +24,8 @@ export async function getMonthlyFlow(userId: string, month: Month, months = 6) {
 export async function getNetWorth(userId: string) {
   const accounts = await getAccounts(userId);
   const live = accounts.filter((a) => !a.archivedAt);
-  return {
-    total: live.reduce((s, a) => s + toNumber(a.balance), 0),
-    accounts: live.length,
-  };
+  const split = balanceSplit(live);
+  return { total: split.net, have: split.have, owed: split.owed, accounts: live.length };
 }
 
 // Average monthly spend per category over the last full months, for budget suggestions.

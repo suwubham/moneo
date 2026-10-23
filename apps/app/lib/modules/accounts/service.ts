@@ -1,11 +1,11 @@
 import "server-only";
 import { z } from "zod";
 import { AppError, notFound } from "@/lib/core/errors";
-import { signedAmountInput } from "@/lib/core/money";
+import { asOwed, signedAmountInput } from "@/lib/core/money";
 import { getDb, type Tx, unitOfWork } from "@/lib/db";
 import { categoryColors } from "@/lib/modules/categories/look";
 import { findAccount, insertAccount, listAccounts, patchAccount, removeAccount, setPositions } from "./repository";
-import { accountIcons, accountKinds } from "./constants";
+import { accountIcons, accountKinds, isOwed } from "./constants";
 
 export const accountInput = z.object({
   name: z.string().trim().min(1, "Give it a name.").max(60),
@@ -16,17 +16,24 @@ export const accountInput = z.object({
   color: z.preprocess((v) => (v === "" ? null : v), z.enum(categoryColors).nullable().optional()),
 });
 
+type AccountInput = z.infer<typeof accountInput>;
+
+// For a card or loan the starting balance is what you owed then, whichever sign it was typed with.
+function toRow(input: AccountInput) {
+  return isOwed(input.kind) ? { ...input, openingBalance: asOwed(input.openingBalance) } : input;
+}
+
 export function getAccounts(userId: string) {
   return listAccounts(getDb(), userId);
 }
 
-export async function createAccount(userId: string, input: z.infer<typeof accountInput>) {
-  return unitOfWork((tx) => insertAccount(tx, { userId, ...input }));
+export async function createAccount(userId: string, input: AccountInput) {
+  return unitOfWork((tx) => insertAccount(tx, { userId, ...toRow(input) }));
 }
 
-export async function updateAccount(userId: string, id: string, input: z.infer<typeof accountInput>) {
+export async function updateAccount(userId: string, id: string, input: AccountInput) {
   return unitOfWork(async (tx) => {
-    const row = await patchAccount(tx, userId, id, input);
+    const row = await patchAccount(tx, userId, id, toRow(input));
     if (!row) throw notFound("account");
     return row;
   });

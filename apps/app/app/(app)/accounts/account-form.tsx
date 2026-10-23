@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
-import { type AccountKind, accountIcons, accountKinds, accountLook, kindLabels } from "@/lib/modules/accounts/constants";
+import { type AccountKind, accountIcons, accountKinds, accountLook, isOwed, kindLabels } from "@/lib/modules/accounts/constants";
 import { categoryColors } from "@/lib/modules/categories/look";
 import { AccountIcon, accountIconSet } from "../../_components/account-icon";
 import { colorVar } from "../../_components/category-icon";
@@ -32,6 +32,7 @@ export function AccountForm({ account, onDone }: { account?: AccountValues; onDo
   const [icon, setIcon] = useState<string | null>(account?.icon ?? null);
   const [color, setColor] = useState<string | null>(account?.color ?? null);
   const look = accountLook({ kind, icon, color }, categoryColors);
+  const owed = isOwed(kind);
 
   useEffect(() => {
     if (state?.ok || other?.ok) onDone();
@@ -93,12 +94,22 @@ export function AccountForm({ account, onDone }: { account?: AccountValues; onDo
           })}
         </div>
       </fieldset>
-      <Field label="starting balance" name="openingBalance" state={state} hint="what it held before the first transaction you add. negative for money owed.">
+      <Field
+        label={owed ? "owed at the start" : "starting balance"}
+        name="openingBalance"
+        state={state}
+        hint={
+          owed
+            ? "what you owed before the first transaction you add. 0 for a new card. purchases add to it; paying the bill is a transfer from your bank."
+            : "what it held before the first transaction you add. negative if it is overdrawn."
+        }
+      >
         <input
           id="openingBalance"
           name="openingBalance"
           inputMode="decimal"
-          defaultValue={account?.openingBalance ?? ""}
+          // A card or loan saves what you owe as a negative balance; here it reads as a plain amount.
+          defaultValue={account ? (isOwed(account.kind) ? account.openingBalance.replace(/^-/, "") : account.openingBalance) : ""}
           placeholder="0.00"
           className={`${input} tabular-nums`}
         />

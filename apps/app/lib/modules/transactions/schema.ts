@@ -25,6 +25,8 @@ export const transactions = pgTable(
     budgetId: uuid("budget_id").references(() => budgets.id, { onDelete: "set null" }),
     // Left out of category and total budgets, e.g. a transfer between your own accounts.
     excludeFromBudgets: boolean("exclude_from_budgets").notNull().default(false),
+    // Both rows of a transfer between your own accounts share this id: money out of one, money in to the other.
+    transferId: uuid("transfer_id"),
     ...timestamps(),
   },
   (t) => [
@@ -32,6 +34,7 @@ export const transactions = pgTable(
     index("ix_transactions_account").on(t.accountId),
     index("ix_transactions_category").on(t.categoryId),
     index("ix_transactions_budget").on(t.budgetId),
+    index("ix_transactions_transfer").on(t.transferId),
   ],
 );
 

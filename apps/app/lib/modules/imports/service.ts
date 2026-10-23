@@ -7,7 +7,7 @@ import { insertAccount, listAccounts } from "@/lib/modules/accounts/repository";
 import { insertMissingBudgets, listBudgets } from "@/lib/modules/budgets/repository";
 import type { BudgetKind } from "@/lib/modules/budgets/schema";
 import { fillLook, insertCategories, listCategories } from "@/lib/modules/categories/repository";
-import { insertTransactions, listForMatching, setBudgetFor, setExcluded } from "@/lib/modules/transactions/repository";
+import { insertTransactions, linkTransferPairs, listForMatching, setBudgetFor, setExcluded } from "@/lib/modules/transactions/repository";
 import { readCashew } from "./cashew";
 import { lockImports } from "./repository";
 
@@ -122,6 +122,8 @@ export async function importCashew(userId: string, bytes: Uint8Array, tzOffset: 
     await insertTransactions(tx, rows);
     for (const [budgetId, ids] of toLink) await setBudgetFor(tx, userId, budgetId, ids);
     await setExcluded(tx, userId, toExclude);
+    // Cashew saves a move between wallets as two loose rows; link them so they are not income and spending.
+    const transfers = await linkTransferPairs(tx, userId);
 
     return {
       imported: rows.length,
@@ -131,6 +133,7 @@ export async function importCashew(userId: string, bytes: Uint8Array, tzOffset: 
       categoriesCreated: created.length,
       budgetsAdded,
       budgetsSkipped: data.budgets.skipped,
+      transfers,
       linked: rows.filter((r) => r.budgetId).length + [...toLink.values()].reduce((n, ids) => n + ids.length, 0),
       currencies: [...new Set(data.wallets.flatMap((w) => (w.currency ? [w.currency] : [])))],
     };
@@ -142,6 +145,7 @@ export async function importCashew(userId: string, bytes: Uint8Array, tzOffset: 
     skipped: result.skipped,
     budgets: result.budgetsAdded,
     linked: result.linked,
+    transfers: result.transfers,
     ms: Date.now() - started,
   });
   return result;

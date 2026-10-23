@@ -4,10 +4,12 @@ import { CloudOff, Plus, RotateCw } from "lucide-react";
 import { useCallback, useState } from "react";
 import { dayLabel } from "@/lib/core/dates";
 import { formatMoney, toNumber } from "@/lib/core/money";
+import { balanceSplit } from "@/lib/modules/accounts/constants";
 import { type TxValues, TransactionForm } from "../(app)/transactions/transaction-form";
 import { AccountIcon } from "../_components/account-icon";
 import { CategoryIcon } from "../_components/category-icon";
 import { Drawer } from "../_components/drawer";
+import { AccountBalance, HaveOwe } from "../_components/money";
 import { PendingChanges } from "../_components/pending-changes";
 import { btnPrimary, btnSoft, card, tile } from "../_components/styles";
 import { SyncProvider, useSync } from "../_components/sync-provider";
@@ -62,7 +64,7 @@ export function OfflineApp() {
 
   const cur = snapshot.currency;
   const accounts = snapshot.accounts.filter((a) => !a.archived);
-  const net = accounts.reduce((s, a) => s + toNumber(a.balance), 0);
+  const split = balanceSplit(accounts);
   const options = accounts.map((a) => ({ id: a.id, name: a.name }));
   const categories = snapshot.categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind, icon: c.icon, color: c.color }));
   const today = snapshot.today;
@@ -96,13 +98,14 @@ export function OfflineApp() {
             <h2 id="off-accounts" className="label">
               net worth · {accounts.length} account{accounts.length === 1 ? "" : "s"}
             </h2>
-            <p className="text-[clamp(2rem,4.5vw,3rem)] leading-none font-extrabold tracking-[-0.045em]">{formatMoney(net, cur)}</p>
+            <p className="text-[clamp(2rem,4.5vw,3rem)] leading-none font-extrabold tracking-[-0.045em]">{formatMoney(split.net, cur)}</p>
+            <HaveOwe split={split} currency={cur} />
             <ul className="flex flex-col divide-y divide-line">
               {accounts.map((a) => (
                 <li key={a.id} className="flex items-center gap-3 py-2.5">
                   <AccountIcon kind={a.kind} icon={a.icon} color={a.color} size="sm" />
                   <span className="min-w-0 flex-1 truncate font-semibold">{a.name}</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(a.balance, cur)}</span>
+                  <AccountBalance kind={a.kind} balance={a.balance} currency={cur} className="font-semibold" />
                 </li>
               ))}
             </ul>
@@ -149,7 +152,9 @@ export function OfflineApp() {
                 <li key={t.id}>
                   <button
                     type="button"
-                    className="wash grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3.5 px-4 py-3 text-left sm:px-5"
+                    className="wash grid w-full grid-cols-[auto_1fr_auto] items-center gap-x-3.5 px-4 py-3 text-left disabled:cursor-default sm:px-5"
+                    // Both sides of a transfer change together on the server, so a transfer waits for a connection.
+                    disabled={Boolean(t.transferId)}
                     onClick={() =>
                       setEditing({
                         title: "Edit transaction",
@@ -173,7 +178,7 @@ export function OfflineApp() {
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{t.description}</span>
                       <span className="label block truncate">
-                        {dayLabel(t.occurredOn, today)} · {t.accountName}
+                        {dayLabel(t.occurredOn, today)} · {t.transferId ? "transfer · edit it when online" : t.accountName}
                       </span>
                     </span>
                     <span className={`font-semibold tabular-nums ${n > 0 ? "text-steel" : ""}`}>{formatMoney(n, cur, { sign: n > 0 })}</span>

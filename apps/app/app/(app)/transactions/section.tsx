@@ -43,7 +43,7 @@ export function readSearch(sp: Record<string, string | string[] | undefined>) {
   const to = date("to");
   // A custom range needs both ends in order; otherwise the month rules.
   const range = from && to && from <= to ? { from, to } : null;
-  const type = one("type") === "in" || one("type") === "out" ? (one("type") as "in" | "out") : undefined;
+  const type = ["in", "out", "transfer"].includes(one("type") ?? "") ? (one("type") as "in" | "out" | "transfer") : undefined;
   const amount = (k: string) => {
     const n = Number(one(k));
     return one(k) && Number.isFinite(n) && n >= 0 ? String(n) : undefined;
@@ -205,7 +205,7 @@ export async function TransactionsSection({
   return (
     <TransactionsView
       groups={groups}
-      accounts={live.map((a) => ({ id: a.id, name: a.name }))}
+      accounts={live.map((a) => ({ id: a.id, name: a.name, kind: a.kind, balance: a.balance }))}
       categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind, icon: c.icon, color: c.color }))}
       budgets={budgets}
       currency={profile.currency}

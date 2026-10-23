@@ -19,6 +19,12 @@ export function withSign(amount: string, direction: Direction): string {
   return direction === "out" ? `-${amount}` : amount;
 }
 
+// A card or loan stores what you owe as a negative balance; the form asks for it as a plain amount.
+export function asOwed(amount: string): string {
+  const plain = amount.replace(/^-/, "");
+  return Number(plain) === 0 ? "0" : `-${plain}`;
+}
+
 export function toNumber(value: string | number | null | undefined): number {
   const n = typeof value === "number" ? value : Number(value ?? 0);
   return Number.isFinite(n) ? n : 0;

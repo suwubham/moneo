@@ -11,7 +11,7 @@ import { getTotals } from "@/lib/modules/transactions/service";
 import { AccountIcon } from "../../../_components/account-icon";
 import { BalanceChart } from "../../../_components/charts";
 import { Empty } from "../../../_components/empty";
-import { Money } from "../../../_components/money";
+import { AccountBalance, Money } from "../../../_components/money";
 import { Reveal } from "../../../_components/reveal";
 import { Skeleton } from "../../../_components/skeleton";
 import { badge, btn, tile } from "../../../_components/styles";
@@ -95,7 +95,7 @@ async function Account({ params, searchParams }: Pick<PageProps<"/accounts/[id]"
               <span className={badge}>{kindLabels[account.kind]}</span>
               {account.archivedAt && <span className={badge}>archived</span>}
               <span className="label">
-                balance today <Money value={account.balance} currency={profile.currency} className="text-ink" />
+                today <AccountBalance kind={account.kind} balance={account.balance} currency={profile.currency} className="text-ink" />
               </span>
             </p>
           </div>

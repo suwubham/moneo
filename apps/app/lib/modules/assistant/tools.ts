@@ -23,7 +23,7 @@ export function financeTools(userId: string) {
     },
     {
       name: "list_accounts",
-      description: "List the user's accounts with their current balance. Credit cards and loans usually have negative balances (money owed).",
+      description: "List the user's accounts with their current balance. Credit cards and loans hold money owed: a negative balance is the amount owed, and it is not money the user has. Card payments are transfers, not spending.",
       schema: z.object({}),
     },
   );

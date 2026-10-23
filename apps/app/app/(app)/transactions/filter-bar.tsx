@@ -7,12 +7,13 @@ import { Segmented, segItem } from "../../_components/segmented";
 import { controlSm } from "../../_components/styles";
 
 type Option = { id: string; name: string };
-type Values = { q?: string; category?: string; budget?: string; type?: "in" | "out"; min?: string; max?: string };
+type Values = { q?: string; category?: string; budget?: string; type?: "in" | "out" | "transfer"; min?: string; max?: string };
 
 const types: [Values["type"], string][] = [
   [undefined, "all"],
   ["in", "money in"],
   ["out", "money out"],
+  ["transfer", "transfers"],
 ];
 
 // Filters apply as you pick them; typed ones (search, amounts) wait for a pause. The list keeps its place while it reloads.

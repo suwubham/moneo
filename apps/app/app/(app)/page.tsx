@@ -5,6 +5,7 @@ import { requireProfile } from "@/lib/core/auth";
 import { aiEnabled } from "@/lib/core/config";
 import { currentMonth, isMonthKey, monthLabel, monthOf, todayIso } from "@/lib/core/dates";
 import { formatMoney, toNumber } from "@/lib/core/money";
+import { balanceSplit } from "@/lib/modules/accounts/constants";
 import { getAccounts } from "@/lib/modules/accounts/service";
 import { getBudgetHistory, getBudgetProgress, getPickedBudgets, statusOf } from "@/lib/modules/budgets/service";
 import { getCategories } from "@/lib/modules/categories/service";
@@ -14,7 +15,7 @@ import { CategoryIcon } from "../_components/category-icon";
 import { FlowChart, MiniColumns, MiniTrend, PaceChart } from "../_components/charts";
 import { CountUp } from "../_components/count-up";
 import { Empty } from "../_components/empty";
-import { Money } from "../_components/money";
+import { HaveOwe, Money } from "../_components/money";
 import { MonthSwitch } from "../_components/month-switch";
 import { PageTitle } from "../_components/page-title";
 import { Reveal } from "../_components/reveal";
@@ -115,7 +116,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     label: date === today ? "today" : shortDate(date),
     value: Math.round([...history.values()].reduce((s, series) => s + (series[i]?.balance ?? 0), 0) * 100) / 100,
   }));
-  const net = live.reduce((s, a) => s + toNumber(a.balance), 0);
+  const split = balanceSplit(live);
   const now = flow.at(-1)!;
   const before = flow.at(-2)!;
   const monthName = monthLabel(key).split(" ")[0].toLowerCase();
@@ -146,15 +147,26 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             </Link>
           </div>
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <CountUp value={net} currency={cur} className={`${big} block`} />
+            <div>
+              <CountUp value={split.net} currency={cur} className={`${big} block`} />
+              <HaveOwe split={split} currency={cur} className="mt-2 block" />
+            </div>
             <div className="w-full sm:w-64">
               <MiniTrend data={netSeries} name="net worth" currency={cur} />
             </div>
           </div>
         </section>
 
-        <section style={{ "--i": 1 } as React.CSSProperties} className={`${tile} col-span-3 flex min-w-0 flex-col justify-between gap-4 lg:col-span-3`}>
-          <h2 className="label">money in · {monthName}</h2>
+        {/* The whole tile opens this month's money in. Hover changes colour only: the rise animation owns transform. */}
+        <Link
+          href={`${txHref}&type=in`}
+          style={{ "--i": 1 } as React.CSSProperties}
+          className={`${tile} group col-span-3 flex min-w-0 flex-col justify-between gap-4 transition-colors duration-300 ease-soft hover:border-steel lg:col-span-3`}
+        >
+          <h2 className="label flex items-center justify-between gap-2">
+            money in · {monthName}
+            <ArrowRight className="size-3.5 shrink-0 transition-colors duration-300 ease-soft group-hover:text-ink" aria-hidden />
+          </h2>
           <MiniColumns
             data={flow.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), value: f.moneyIn }))}
             active={key}
@@ -172,10 +184,18 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
               </span>
             </p>
           </div>
-        </section>
+        </Link>
 
-        <section style={{ "--i": 2 } as React.CSSProperties} className={`${tile} col-span-3 flex min-w-0 flex-col justify-between gap-4 rounded-[1.2rem_2.4rem_1.2rem_2.4rem] lg:col-span-3`}>
-          <h2 className="label">money out · {monthName}</h2>
+        {/* The whole tile opens this month's money out. Hover changes colour only: the rise animation owns transform. */}
+        <Link
+          href={`${txHref}&type=out`}
+          style={{ "--i": 2 } as React.CSSProperties}
+          className={`${tile} group col-span-3 flex min-w-0 flex-col justify-between gap-4 rounded-[1.2rem_2.4rem_1.2rem_2.4rem] transition-colors duration-300 ease-soft hover:border-steel lg:col-span-3`}
+        >
+          <h2 className="label flex items-center justify-between gap-2">
+            money out · {monthName}
+            <ArrowRight className="size-3.5 shrink-0 transition-colors duration-300 ease-soft group-hover:text-ink" aria-hidden />
+          </h2>
           <MiniColumns
             data={flow.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), value: f.moneyOut }))}
             active={key}
@@ -193,7 +213,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
               </span>
             </p>
           </div>
-        </section>
+        </Link>
 
         <section style={{ "--i": 3 } as React.CSSProperties} className={`${tile} col-span-6 flex flex-col gap-4 lg:col-span-7`} aria-labelledby="flow">
           <div className="flex items-baseline justify-between gap-3">
@@ -321,7 +341,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           ) : (
             <RecentList
               rows={recent}
-              accounts={live.map((a) => ({ id: a.id, name: a.name }))}
+              accounts={live.map((a) => ({ id: a.id, name: a.name, kind: a.kind, balance: a.balance }))}
               categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind, icon: c.icon, color: c.color }))}
               budgets={picked}
               currency={cur}
