@@ -130,7 +130,7 @@ export async function* streamReply(
   const tools: string[] = [];
   const started = Date.now();
   try {
-    const stream = await graph.stream({ messages: input }, { streamMode: "messages", recursionLimit: 12, signal });
+    const stream = await graph.stream({ messages: input }, { streamMode: "messages", recursionLimit: 16, signal });
     for await (const [chunk, meta] of stream) {
       if (meta?.langgraph_node === "agent" && AIMessageChunk.isInstance(chunk)) {
         const calls = chunk.tool_calls?.length ? chunk.tool_calls : (chunk.tool_call_chunks ?? []);
@@ -154,7 +154,10 @@ export async function* streamReply(
   } catch (err) {
     if (err instanceof GraphRecursionError) {
       log.warn("chat hit step limit", { ms: Date.now() - started, tools: tools.join(",") });
-      const note = "I looked through your data but could not pin down an answer. Try asking a narrower question, like one month or one category.";
+      // A view made before the limit still answers the question; say so rather than that nothing was found.
+      const note = ctx.box?.files.length
+        ? "The view below shows what I found."
+        : "I looked through your data but could not pin down an answer. Try asking a narrower question, like one month or one category.";
       text += (text ? "\n\n" : "") + note;
       yield { t: "text", v: (text === note ? "" : "\n\n") + note };
     } else if (signal.aborted) {

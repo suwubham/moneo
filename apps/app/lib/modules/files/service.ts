@@ -30,12 +30,17 @@ export type FileMeta = { id: string; name: string; kind: FileKind; bytes: number
 type Deps = { boxes: BoxProvider; store: FileStore };
 const live: Deps = { boxes: vercelBoxes, store: r2Store };
 
-// What a sandbox gets from a transaction: enough to chart it, nothing typed by the person.
-// No description or note, no ids of the row or the user, no timestamps.
+// What a sandbox gets from a transaction: everything a chart or list needs, names included, so a view can say
+// "Ghar Kharcha" rather than a category. No ids of the row or the user, no timestamps.
 export function sandboxTransactions(rows: TxRow[]) {
   return rows.map((t) => ({
     date: t.occurredOn,
     amount: t.amount,
+    description: t.description,
+    note: t.note,
+    account: t.accountName,
+    category: t.categoryName,
+    budget: t.budgetName,
     accountId: t.accountId,
     categoryId: t.categoryId,
     budgetId: t.budgetId,

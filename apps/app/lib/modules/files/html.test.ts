@@ -19,3 +19,11 @@ test("the card shows a stored page in the viewer's theme", () => {
   assert.ok(withTheme(page, "light").startsWith(`<!doctype html><html data-theme="light"><head>`));
   assert.equal(withTheme("<p>not ours</p>", "light"), "<p>not ours</p>");
 });
+
+test("the app's fonts go in after our policy, never before it", () => {
+  const page = withTheme(wrapHtml("<p>x</p>"), "dark", "@font-face{font-family:\"Moneo Sans\"}");
+  assert.ok(page.startsWith(`<!doctype html><html data-theme="dark"><head>`));
+  assert.ok(page.indexOf(pageCsp) < page.indexOf("@font-face"));
+  assert.ok(page.indexOf(pageCsp) < page.indexOf("overflow:hidden!important"));
+  assert.ok(page.endsWith("<p>x</p>"));
+});

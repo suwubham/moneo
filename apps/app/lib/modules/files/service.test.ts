@@ -10,7 +10,7 @@ import type { FileStore } from "./storage";
 
 const hasDb = Boolean(process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
 
-test("a sandbox never gets descriptions, notes or ids it does not need", () => {
+test("a sandbox gets the names a view shows, but no row or user ids", () => {
   const row = {
     id: "t1",
     amount: "-12.50",
@@ -26,8 +26,11 @@ test("a sandbox never gets descriptions, notes or ids it does not need", () => {
     transferId: null,
   } as unknown as TxRow;
   const [out] = sandboxTransactions([row]);
-  assert.deepEqual(Object.keys(out).sort(), ["accountId", "amount", "budgetId", "categoryId", "date", "excludeFromBudgets", "transferId"]);
-  assert.ok(!JSON.stringify(out).includes("Dinner"));
+  assert.deepEqual(Object.keys(out).sort(), [
+    "account", "accountId", "amount", "budget", "budgetId", "category", "categoryId", "date", "description", "excludeFromBudgets", "note", "transferId",
+  ]);
+  assert.equal(out.description, "Dinner with a friend");
+  assert.ok(!("id" in out) && !("userId" in out));
 });
 
 test("only small html, csv and json files with plain names are kept, three at most", () => {

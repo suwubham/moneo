@@ -202,11 +202,53 @@ export function financeTools(userId: string, box?: TurnSandbox) {
 const MAKE_FILES = `Run a Python 3.13 script in this chat's sandbox to make charts, reports and small interactive widgets the person can see and download.
 - First get the data with the other tools and save_to_sandbox: true. Each call saves a file in data/ and tells you its path. Files saved earlier in this chat are listed in the instructions.
 - data/accounts.json and data/categories.json map ids to names ({id, name, kind}).
+- Saved transactions have date, amount, description (what the person typed, like "Ghar Kharcha"), note, account, category and budget names, and their ids. A row about one transaction is labelled with its description, with the category and date as small context; never use the category in its place.
 - Write results to out/: .html for a chart or widget, .csv or .json for a report. At most 3 files, 2 MB each, with plain names like spending.html.
 - Only the standard library is installed (json, csv, statistics, datetime, decimal). There is no internet.
-- Amounts are strings. Use decimal.Decimal for sums, never float, and round to 2 places.
-- HTML must be one self-contained file: inline <style> and <script>, charts drawn with inline SVG or canvas. No external scripts, fonts, images or requests; they are blocked.
-- Colours come only from the page's variables, which follow the app's light and dark theme: var(--night) background, var(--night-2) and var(--night-3) surfaces, var(--ink) text, var(--ink-soft) muted text, var(--line) borders, var(--steel) and var(--frost) for data, var(--accent) for one highlight only. Never write a hex, rgb or named colour, and never set these variables yourself.
-- Keep motion small: transform and opacity only, about 250 ms. The page turns animation off for people who ask for reduced motion; do the same for any element.animate() call.
+- Amounts are strings. Use decimal.Decimal for sums, never float. Show money in whole units with thousands separators and no decimals (NPR 45,000, never 45,000.00): round half up with quantize(Decimal("1"), ROUND_HALF_UP), then format with f"{value:,}". Percentages get at most one decimal.
 - Put the numbers into the page from the data, never type them in by hand. Label axes and give every chart a title.
-- You never see the rows or the files, only stdout and errors (cut at 2000 characters). Print the totals and key figures you will mention, one per line.`;
+- You never see the rows or the files, only stdout and errors (cut at 2000 characters). Print the totals and key figures you will mention, one per line.
+
+How an .html file is shown:
+- Inline in the chat, right under your answer, with no frame around it: it is part of your reply. It is 300 to 750 px wide (phones are narrow) and grows to the page's full height, so it must never scroll: no fixed heights, no vh units, no position: fixed, no wide fixed-width content.
+- Write only what goes in <body>; do not write <html>, <head> or <!doctype>. The page already has the app's background and text colour and the styles below. It has no padding: it lines up with your text, so do not add an outer margin or wrap everything in one big .card.
+- One self-contained page: inline <style> and <script>, charts drawn with inline SVG. No external scripts, fonts, images or requests; they are blocked.
+- SVG: always a viewBox and no width or height attributes, so it scales to the card. Make the viewBox about 400 wide, so its 11 to 13 unit text stays readable when a phone shrinks it, and leave room for axis labels inside it. Use SVG for things over time (columns, lines); for a ranked list (categories, merchants, accounts) use .bars rows instead, which reflow on phones.
+- Keep it short: at most 8 rows in a list or table, with the rest summed as "Other". Tables have at most 3 columns, numbers right-aligned.
+
+Ready-made classes (use them; add little CSS of your own):
+- Layout: .stack (vertical, 12 px gaps), .grid (cards that wrap side by side), .row (spread across one line, wraps on phones), .card (a raised panel).
+- Text: .title (a heading; wrap one word in <em> for the app's italic accent), .label (small mono caption, lower case), .big (a headline number), .soft (muted), .num (right-aligned figures), .chip (a small pill), .up (a good change), .down (a change to watch).
+- Bits: .meter with an <i> inside, its width set inline as a percent (a progress bar). .bars holds ranked rows: each row is a <div> with a name, a .num amount and a .meter under them (style the <i> with that row's colour). <table> is styled: put class="num" on number cells. <input type="range"> and <button> are styled.
+
+Colours and fonts (they follow the app's light and dark theme by themselves):
+- Only these variables, never a hex, rgb or named colour, and never set the variables yourself: var(--night) page, var(--night-2) and var(--night-3) surfaces, var(--line) borders, var(--ink) text, var(--ink-soft) muted text.
+- Data: var(--chart-in) for money in, var(--chart-out) for money out and spending, var(--cat-1) to var(--cat-8) for categories in that order, var(--steel) for a single neutral series. var(--accent) for one highlight only.
+- Fonts: var(--font-sans) for text, var(--font-mono) for labels, axes and small figures, var(--font-serif) italic for one accent word. Numbers use font-variant-numeric: tabular-nums.
+- Look: calm and sparse, like the app's own overview. Lower-case mono labels, big bold numbers, rounded bars (rx 3), thin var(--line) gridlines, no shadows, gradients, emoji or chart borders.
+
+For a simple answer, keep the view small: one .card with a .label, a .big number and a line of context (against last month, how many transactions), or a short .bars list. Bigger questions get a title, a .grid of figures and a chart.
+
+A sample to follow (numbers come from the data):
+<div class="stack">
+  <div class="row"><p class="title">Dining, <em>month by month</em></p><span class="chip">6 months</span></div>
+  <div class="grid">
+    <div class="card"><p class="label">this month</p><p class="big">$413</p><p class="label up">-12% on last month</p></div>
+    <div class="card"><p class="label">monthly average</p><p class="big">$468</p></div>
+  </div>
+  <div class="card"><p class="label">where it went</p>
+    <div class="bars">
+      <div><span>Groceries</span><span class="num">$612</span><div class="meter"><i style="width:100%;background:var(--cat-1)"></i></div></div>
+      <div><span>Transport</span><span class="num">$268</span><div class="meter"><i style="width:44%;background:var(--cat-2)"></i></div></div>
+    </div>
+  </div>
+  <div class="card"><p class="label">spent per month</p>
+    <svg viewBox="0 0 400 180" role="img" aria-label="Dining spending per month">
+      <line x1="32" y1="150" x2="396" y2="150" stroke="var(--line)"/>
+      <rect x="44" y="70" width="28" height="80" rx="3" fill="var(--chart-out)"/>
+      <text x="58" y="166" text-anchor="middle">may</text>
+    </svg>
+  </div>
+</div>
+
+Motion: small, transform and opacity only, about 250 ms. The page turns animation off for people who ask for reduced motion; do the same for any element.animate() call.`;

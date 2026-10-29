@@ -1,83 +1,57 @@
-import { Fragment, type ReactNode } from "react";
+import Link from "next/link";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 
-function inline(text: string, key: string): ReactNode[] {
-  const out: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
-  let last = 0;
-  let i = 0;
-  for (const m of text.matchAll(re)) {
-    if (m.index! > last) out.push(text.slice(last, m.index));
-    const tok = m[0];
-    out.push(
-      tok.startsWith("**") ? (
-        <strong key={`${key}-${i++}`} className="font-bold">
-          {tok.slice(2, -2)}
-        </strong>
-      ) : (
-        <code key={`${key}-${i++}`} className="rounded bg-night-3 px-1 font-mono text-[.88em]">
-          {tok.slice(1, -1)}
-        </code>
-      ),
-    );
-    last = m.index! + tok.length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
+// Model output is untrusted. No raw HTML and no images (an image URL would load by itself and could carry data
+// away); links only to the app's own pages, anything else shows as plain text.
+const components: Components = {
+  p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
+  h1: ({ children }) => <h3 className="mt-4 mb-2 text-[1.15rem] leading-tight font-extrabold tracking-[-0.03em] first:mt-0">{children}</h3>,
+  h2: ({ children }) => <h3 className="mt-4 mb-2 text-[1.15rem] leading-tight font-extrabold tracking-[-0.03em] first:mt-0">{children}</h3>,
+  h3: ({ children }) => <h4 className="mt-3 mb-1.5 font-bold first:mt-0">{children}</h4>,
+  h4: ({ children }) => <h4 className="mt-3 mb-1.5 font-bold first:mt-0">{children}</h4>,
+  h5: ({ children }) => <h4 className="mt-3 mb-1.5 font-bold first:mt-0">{children}</h4>,
+  h6: ({ children }) => <h4 className="mt-3 mb-1.5 font-bold first:mt-0">{children}</h4>,
+  ul: ({ children }) => <ul className="my-2 flex list-disc flex-col gap-1 pl-5 marker:text-scene">{children}</ul>,
+  ol: ({ children }) => <ol className="my-2 flex list-decimal flex-col gap-1 pl-5">{children}</ol>,
+  strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  del: ({ children }) => <del className="text-ink-soft">{children}</del>,
+  blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-line pl-3 text-ink-soft">{children}</blockquote>,
+  hr: () => <hr className="my-4 border-line" />,
+  pre: ({ children }) => <pre className="my-2 overflow-x-auto rounded-lg bg-night-3 px-3 py-2 font-mono text-[.85em]">{children}</pre>,
+  code: ({ children }) => <code className="rounded bg-night-3 px-1 font-mono text-[.88em]">{children}</code>,
+  table: ({ children }) => (
+    <div className="my-3 overflow-x-auto">
+      <table className="w-full border-collapse text-[.92rem] tabular-nums">{children}</table>
+    </div>
+  ),
+  th: ({ children, style }) => (
+    <th className="label px-2 py-1.5 text-left font-normal whitespace-nowrap" style={style}>
+      {children}
+    </th>
+  ),
+  td: ({ children, style }) => (
+    <td className="border-t border-line px-2 py-1.5" style={style}>
+      {children}
+    </td>
+  ),
+  a: ({ href, children }) =>
+    href?.startsWith("/") && !href.startsWith("//") ? (
+      <Link href={href} className="underline underline-offset-4 hover:text-scene">
+        {children}
+      </Link>
+    ) : (
+      <span>{children}</span>
+    ),
+  img: () => null,
+};
 
-type Block = { kind: "p"; lines: string[] } | { kind: "ul" | "ol"; items: string[] };
-
-const bullet = /^\s*[-*•]\s+/;
-const number = /^\s*\d+[.)]\s+/;
-
-// Lines are grouped as they come, so "Here is the breakdown:" followed by bullets becomes a paragraph and a list.
-function blocks(text: string): Block[] {
-  const out: Block[] = [];
-  for (const raw of text.replace(/\r/g, "").split("\n")) {
-    const line = raw.trimEnd();
-    const last = out.at(-1);
-    if (!line.trim()) {
-      out.push({ kind: "p", lines: [] });
-      continue;
-    }
-    const kind = bullet.test(line) ? "ul" : number.test(line) ? "ol" : "p";
-    if (kind === "p") {
-      if (last?.kind === "p") last.lines.push(line.replace(/^#+\s*/, ""));
-      else out.push({ kind: "p", lines: [line.replace(/^#+\s*/, "")] });
-    } else {
-      const item = line.replace(kind === "ul" ? bullet : number, "");
-      if (last?.kind === kind) last.items.push(item);
-      else out.push({ kind, items: [item] });
-    }
-  }
-  return out.filter((b) => (b.kind === "p" ? b.lines.length > 0 : b.items.length > 0));
-}
-
-// Just enough markdown for chat answers: paragraphs, lists, bold, code. Text only, never HTML.
+// Chat answers in GitHub-flavoured markdown: headings, lists, emphasis, tables, quotes and code.
 export function Markdown({ text }: { text: string }) {
   return (
-    <>
-      {blocks(text).map((b, n) => {
-        if (b.kind === "p")
-          return (
-            <p key={n} className="my-2 first:mt-0 last:mb-0">
-              {b.lines.map((l, i) => (
-                <Fragment key={i}>
-                  {i > 0 && <br />}
-                  {inline(l, `${n}-${i}`)}
-                </Fragment>
-              ))}
-            </p>
-          );
-        const Tag = b.kind;
-        return (
-          <Tag key={n} className={`my-2 flex flex-col gap-1 pl-5 ${b.kind === "ol" ? "list-decimal" : "list-disc marker:text-scene"}`}>
-            {b.items.map((item, i) => (
-              <li key={i}>{inline(item, `${n}-${i}`)}</li>
-            ))}
-          </Tag>
-        );
-      })}
-    </>
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} skipHtml>
+      {text}
+    </ReactMarkdown>
   );
 }

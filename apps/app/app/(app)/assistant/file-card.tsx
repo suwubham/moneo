@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { withTheme } from "@/lib/modules/files/html";
 import type { FileMeta } from "@/lib/modules/files/service";
 import { btn, card } from "../../_components/styles";
+import { pageFonts } from "./page-fonts";
 
-const kindWords = { html: "Chart", csv: "CSV", json: "JSON" } as const;
+const kindWords = { csv: "CSV", json: "JSON" } as const;
 const PREVIEW_ROWS = 20;
+// Tall enough for any real chart or report; the cap only stops a runaway page from growing forever.
+const MAX_HEIGHT = 4000;
 
 function size(bytes: number) {
   return bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -50,18 +53,23 @@ function parseCsv(text: string, max: number) {
 
 export function FileCard({ file }: { file: FileMeta }) {
   const [text, setText] = useState<string | null>(null);
+  const [fonts, setFonts] = useState("");
   const [failed, setFailed] = useState(false);
-  const [height, setHeight] = useState(360);
+  const [height, setHeight] = useState(240);
   const frameRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     const ac = new AbortController();
-    fetch(`/api/files/${file.id}`, { signal: ac.signal })
-      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
-      .then(setText)
+    // Fonts arrive with the page, so the frame loads once instead of again when they land.
+    const page = fetch(`/api/files/${file.id}`, { signal: ac.signal }).then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))));
+    Promise.all([page, file.kind === "html" ? pageFonts() : ""])
+      .then(([t, f]) => {
+        setFonts(f);
+        setText(t);
+      })
       .catch(() => !ac.signal.aborted && setFailed(true));
     return () => ac.abort();
-  }, [file.id]);
+  }, [file.id, file.kind]);
 
   useEffect(() => {
     if (file.kind !== "html") return;
@@ -69,16 +77,41 @@ export function FileCard({ file }: { file: FileMeta }) {
     function onMessage(e: MessageEvent) {
       if (e.source !== frameRef.current?.contentWindow) return;
       const h = Number((e.data as { moneoHeight?: unknown })?.moneoHeight);
-      if (Number.isFinite(h)) setHeight(Math.min(Math.max(h, 160), 900));
+      if (Number.isFinite(h)) setHeight(Math.min(Math.max(Math.ceil(h), 80), MAX_HEIGHT));
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [file.kind]);
 
+  // A page is part of the answer: no frame, header or download, just the view in the chat column.
+  if (file.kind === "html") {
+    return (
+      <figure className="rise-1 mt-4">
+        {failed ? (
+          <p className="text-[.9rem] text-ink-soft">Could not show this view. The download may still work.</p>
+        ) : text === null ? (
+          <div className="h-40 animate-pulse rounded-[1.1rem] bg-night-3/40" aria-label="Loading" />
+        ) : (
+          <iframe
+            ref={frameRef}
+            title={file.name}
+            // Scripts run, but in a throwaway origin: no cookies, no access to this page or our API.
+            sandbox="allow-scripts"
+            // The frame grows to the page, so it never needs its own scrollbar (html.ts hides overflow too).
+            scrolling="no"
+            srcDoc={withTheme(text, theme(), fonts)}
+            style={{ height }}
+            className="block w-full border-0 bg-night"
+          />
+        )}
+      </figure>
+    );
+  }
+
   return (
     <figure className={`${card} rise-1 mt-4 overflow-hidden`}>
       <figcaption className="flex items-center gap-3 border-b border-line px-4 py-2.5">
-        <span className="label">{kindWords[file.kind]}</span>
+        <span className="label">{kindWords[file.kind as "csv" | "json"]}</span>
         <span className="min-w-0 flex-1 truncate font-mono text-[.85rem]">{file.name}</span>
         <span className="label hidden sm:inline">{size(file.bytes)}</span>
         <a href={`/api/files/${file.id}?download=1`} download={file.name} className={btn}>
@@ -90,16 +123,6 @@ export function FileCard({ file }: { file: FileMeta }) {
         <p className="px-4 py-6 text-[.9rem] text-ink-soft">Could not load this file. The download may still work.</p>
       ) : text === null ? (
         <div className="h-40 animate-pulse bg-night-3/40" aria-label="Loading" />
-      ) : file.kind === "html" ? (
-        <iframe
-          ref={frameRef}
-          title={file.name}
-          // Scripts run, but in a throwaway origin: no cookies, no access to this page or our API.
-          sandbox="allow-scripts"
-          srcDoc={withTheme(text, theme())}
-          style={{ height }}
-          className="block w-full border-0 bg-night"
-        />
       ) : file.kind === "csv" ? (
         <CsvPreview text={text} />
       ) : (
