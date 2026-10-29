@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 import { site } from "../../_lib/site";
+import { AskCard } from "../ask-card";
+import { Demo } from "../demo";
 import { Split } from "../split";
 
 const cta =
@@ -13,7 +15,7 @@ export function Hero() {
       id="top"
       data-sec
       aria-labelledby="hero-title"
-      className="wrap relative grid min-h-[100svh] content-center gap-12 pt-[max(6rem,calc(env(safe-area-inset-top)+5rem))] pb-28 md:pb-16 short:min-h-0 short:pt-24 lg:grid-cols-[1fr_auto] lg:items-end"
+      className="wrap relative grid gap-12 pt-[max(6rem,calc(env(safe-area-inset-top)+5rem))] pb-12 [perspective:1600px] short:pt-24 md:pb-16 lg:grid-cols-[1fr_minmax(0,24rem)] lg:items-center"
     >
       <div>
         <p className="mb-6 flex items-center gap-3 font-mono text-[.8rem] text-scene">
@@ -23,7 +25,7 @@ export function Hero() {
         <h1
           id="hero-title"
           aria-label="Your money, explained."
-          className="text-[clamp(4rem,14vw,10rem)] leading-[0.84] font-extrabold tracking-[-0.065em] short:text-[clamp(3rem,9vw,6rem)]"
+          className="text-[clamp(4rem,14vw,10rem)] leading-[0.84] font-extrabold tracking-[-0.065em] short:text-[clamp(3rem,9vw,6rem)] lg:text-[clamp(4rem,8vw,8.5rem)]"
         >
           <Split text="Your money," />
           <Split text="explained." start={11} className="fancy ml-[clamp(.6rem,10vw,10rem)] tracking-[-0.04em] text-scene" />
@@ -42,40 +44,15 @@ export function Hero() {
         </div>
       </div>
 
-      <aside
-        aria-label="Example insight"
-        className="sticker rv w-full max-w-[19rem] justify-self-start rounded-[1.6rem_.8rem_1.6rem_.8rem] border border-line bg-night-2 p-5 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] lg:justify-self-end"
-        style={{ "--rz": "3deg", "--d": 4 } as CSSProperties}
+      <AskCard />
+
+      <figure
+        aria-label="A working demo of the Moneo overview, with sample numbers"
+        className="peek rv rounded-[2.4rem_1.2rem_2.4rem_1.2rem] lg:col-span-2 border border-line bg-night p-3 shadow-[0_40px_80px_-40px_rgba(0,0,0,.7)] sm:p-5"
+        style={{ "--d": 4 } as CSSProperties}
       >
-        <p className="label">this month, so far</p>
-        <p className="mt-3 text-[2.6rem] leading-none font-extrabold tracking-[-0.05em] tabular-nums">
-          $1,284<span className="text-ink-soft">.60</span>
-        </p>
-        <p className="mt-1 label">spent across 46 transactions</p>
-        <div className="mt-5 space-y-2.5">
-          {[
-            { k: "groceries", v: 0.62 },
-            { k: "dining", v: 0.88 },
-            { k: "transport", v: 0.34 },
-          ].map((b) => (
-            <div key={b.k}>
-              <div className="flex justify-between font-mono text-[.72rem] text-ink-soft">
-                <span>{b.k}</span>
-                <span className="tabular-nums">{Math.round(b.v * 100)}%</span>
-              </div>
-              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-night-3">
-                <div
-                  className={`h-full origin-left rounded-full ${b.v > 0.8 ? "bg-amber" : "bg-steel"}`}
-                  style={{ transform: `scaleX(${b.v})` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-5 border-t border-line pt-4 text-[.92rem] leading-snug">
-          Dining is <span className="fancy text-scene">18% up</span> on last month. Mostly Fridays.
-        </p>
-      </aside>
+        <Demo />
+      </figure>
     </section>
   );
 }

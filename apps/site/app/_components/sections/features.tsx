@@ -114,15 +114,23 @@ export function Features() {
             <h3 className={tileTitle}>Type it like a text.</h3>
             <p className={body}>Write what happened. Moneo turns it into a tidy entry for you to check and save.</p>
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <span className="rounded-lg border border-line bg-night px-3 py-2 font-mono text-[.8rem]">
+              {/* It types itself out, then the entry's parts drop in (globals.css: .typed, .chip-in). */}
+              <span className="typed relative overflow-hidden rounded-lg border border-line bg-night px-3 py-2 font-mono text-[.8rem]">
                 coffee 4.50 yesterday on visa
+                <span className="typed-cover" aria-hidden />
               </span>
-              <span className="text-ink-soft" aria-hidden>
+              <span className="chip-in text-ink-soft" style={d(0)} aria-hidden>
                 →
               </span>
-              <span className={chip}>dining</span>
-              <span className={chip}>−4.50</span>
-              <span className={chip}>visa</span>
+              <span className={`${chip} chip-in`} style={d(1)}>
+                dining
+              </span>
+              <span className={`${chip} chip-in`} style={d(2)}>
+                −4.50
+              </span>
+              <span className={`${chip} chip-in`} style={d(3)}>
+                visa
+              </span>
             </div>
           </div>
         </article>

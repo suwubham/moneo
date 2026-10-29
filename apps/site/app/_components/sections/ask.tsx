@@ -26,11 +26,11 @@ export function Ask() {
             <p className={`${bubble} self-end rounded-br-md bg-night-3`}>
               How much did we spend eating out last month?
             </p>
-            <div className="rv flex flex-wrap gap-2" style={{ "--d": 1 } as CSSProperties}>
+            <div className="rv flex flex-wrap gap-2" style={{ "--d": 4 } as CSSProperties}>
               <span className={chip}>looked at transactions · sep 1–30</span>
               <span className={chip}>compared with august</span>
             </div>
-            <div className={`${bubble} rounded-bl-md bg-night`} style={{ "--d": 2 } as CSSProperties}>
+            <div className={`${bubble} rounded-bl-md bg-night`} style={{ "--d": 9 } as CSSProperties}>
               <p>
                 You spent <strong className="tabular-nums">$412.80</strong> on dining in September, across 19
                 transactions. That is <span className="fancy text-scene">18% more</span> than August.

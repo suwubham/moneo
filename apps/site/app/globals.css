@@ -77,6 +77,72 @@
   .outline-text {
     color: color-mix(in srgb, var(--ink) 7%, transparent);
   }
+
+  /* The hero's demo tilts up into place as it scrolls in, then its charts draw (after .rv adds .in). */
+  .peek {
+    transform-origin: 50% 0;
+  }
+  .peek-fill {
+    transform-origin: 0 50%;
+  }
+  .peek-bar {
+    transform-origin: 50% 100%;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .peek {
+        animation: tilt-in linear both;
+        animation-timeline: view();
+        animation-range: entry 0% cover 35%;
+      }
+    }
+  }
+  @media (scripting: enabled) {
+    .in .peek-bar {
+      /* Backwards only: once drawn, the bars' own transitions take over when the visitor picks a month. */
+      animation: peek-y 0.8s var(--ease-snap) backwards;
+      animation-delay: calc(250ms + var(--i, 0) * 70ms);
+    }
+    .in .peek-fill {
+      animation: peek-x 0.9s var(--ease-snap) backwards;
+      animation-delay: calc(400ms + var(--i, 0) * 80ms);
+    }
+    .in .peek-line {
+      stroke-dasharray: 100;
+      animation: draw 1.6s var(--ease-soft) 0.3s both;
+    }
+
+    /* "Type it like a text": a cover in the field's colour steps off the text one character at a time,
+       its edge the caret. At rest it sits past the end, so without motion the text just shows. */
+    .in .typed-cover {
+      animation: type 1.5s steps(29, end) 0.5s both;
+    }
+    .in .chip-in {
+      animation: chip-in 0.45s var(--ease-soft) both;
+      animation-delay: calc(2.15s + var(--d, 0) * 120ms);
+    }
+  }
+  .typed-cover {
+    position: absolute;
+    inset-block: 0;
+    left: 0.75rem;
+    width: 29ch;
+    background: var(--night);
+    border-left: 2px solid var(--scene);
+    transform: translateX(100%);
+  }
+
+  /* A number or row that just changed settles in. */
+  .tick {
+    animation: tick 0.25s var(--ease-soft);
+  }
+
+  .marquee-track {
+    animation: marquee 50s linear infinite;
+  }
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
 }
 
 @keyframes rise {
@@ -100,5 +166,48 @@
   }
   to {
     transform: scaleX(1);
+  }
+}
+@keyframes tilt-in {
+  from {
+    rotate: x 14deg;
+    scale: 0.94;
+  }
+}
+@keyframes peek-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes peek-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+@keyframes type {
+  from {
+    transform: translateX(0);
+  }
+}
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes tick {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
