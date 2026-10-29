@@ -5,9 +5,11 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import type { ActionState } from "@/lib/core/action-state";
 import { formatMoney, plainAmount, toNumber } from "@/lib/core/money";
 import { type AccountKind, isOwed } from "@/lib/modules/accounts/constants";
+import { AmountInput } from "../../_components/amount-input";
+import { DateField } from "../../_components/date-field";
 import { Field, FormError, Submit } from "../../_components/form";
 import { Segmented, segItem } from "../../_components/segmented";
-import { btn, btnDanger, btnPrimary, control, input, textarea } from "../../_components/styles";
+import { btn, btnDanger, btnPrimary, input, textarea } from "../../_components/styles";
 import { deleteTransferAction, saveTransferAction } from "./actions";
 import type { Option } from "./transaction-form";
 
@@ -127,16 +129,7 @@ export function TransferForm({
           />
         </Field>
         <Field label="amount" name="amount" state={state}>
-          <input
-            ref={amountRef}
-            id="amount"
-            name="amount"
-            required
-            inputMode="decimal"
-            defaultValue={values.amount}
-            placeholder="0.00"
-            className={`${control} w-32 text-right tabular-nums`}
-          />
+          <AmountInput ref={amountRef} defaultValue={values.amount} />
         </Field>
       </div>
       {owes > 0 && target && (
@@ -153,7 +146,7 @@ export function TransferForm({
         </button>
       )}
       <Field label="date" name="occurredOn" state={state}>
-        <input id="occurredOn" name="occurredOn" type="date" required defaultValue={values.occurredOn} className={input} />
+        <DateField name="occurredOn" defaultValue={values.occurredOn} />
       </Field>
       <Field label="note" name="note" state={state}>
         <textarea id="note" name="note" rows={2} maxLength={500} defaultValue={values.note ?? ""} className={textarea} />

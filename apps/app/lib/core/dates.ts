@@ -34,6 +34,13 @@ export function shiftMonth(key: string, by: number): Month {
   return monthOf(`${Math.floor(total / 12)}-${pad((total % 12) + 1)}`);
 }
 
+// How many months b is after a ("2026-05" to "2026-10" is 5).
+export function monthsBetween(a: string, b: string): number {
+  const [ay, am] = a.split("-").map(Number);
+  const [by, bm] = b.split("-").map(Number);
+  return (by - ay) * 12 + (bm - am);
+}
+
 export function isMonthKey(v: unknown): v is string {
   return typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
 }

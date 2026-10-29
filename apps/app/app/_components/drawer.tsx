@@ -49,7 +49,7 @@ export function Drawer({
         if (e.target === e.currentTarget && performance.now() - openedAt.current > 400) onClose();
       }}
     >
-      <div className="flex h-full flex-col overflow-y-auto overscroll-contain px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-7">
+      <div className="thin-scroll flex h-full flex-col overflow-y-auto overscroll-contain px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-7">
         <div className="mb-6 flex items-center justify-between gap-4">
           <h2 className="text-[1.6rem] font-extrabold tracking-[-0.04em]">{title}</h2>
           <button type="button" onClick={onClose} className={closeBtn} aria-label="Close">

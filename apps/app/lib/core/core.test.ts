@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { autoDecision } from "../db/migrate";
-import { dayLabel, monthOf, shiftMonth } from "./dates";
-import { amountInput, formatMoney, plainAmount, withSign } from "./money";
+import { dayLabel, monthOf, monthsBetween, shiftMonth } from "./dates";
+import { amountInput, evalAmount, formatMoney, plainAmount, withSign } from "./money";
 
 describe("dates", () => {
   test("a month is a half-open range that rolls into the next year", () => {
@@ -12,6 +12,12 @@ describe("dates", () => {
   test("shifting months crosses year boundaries both ways", () => {
     assert.equal(shiftMonth("2026-01", -1).key, "2025-12");
     assert.equal(shiftMonth("2025-11", 3).key, "2026-02");
+  });
+
+  test("months between counts across years", () => {
+    assert.equal(monthsBetween("2026-05", "2026-10"), 5);
+    assert.equal(monthsBetween("2025-11", "2026-02"), 3);
+    assert.equal(monthsBetween("2026-10", "2026-10"), 0);
   });
 
   test("recent days get friendly labels", () => {
@@ -41,6 +47,20 @@ describe("money", () => {
     assert.equal(formatMoney("20000.00", "NPR"), "NPR\u00a020,000");
     assert.equal(plainAmount(-20000), "20000");
     assert.equal(plainAmount(12.5), "12.50");
+  });
+
+  test("sums in the amount field work out to two decimals", () => {
+    assert.equal(evalAmount("12.50+8"), "20.50");
+    assert.equal(evalAmount("3×4.20"), "12.60");
+    assert.equal(evalAmount("(60 - 12) / 3"), "16");
+    assert.equal(evalAmount("0.1+0.2"), "0.30");
+    assert.equal(evalAmount("1,200 + 50"), "1250");
+    assert.equal(evalAmount("10/3"), "3.33");
+    // Plain numbers and broken sums are left as typed.
+    assert.equal(evalAmount("1,234.50"), null);
+    assert.equal(evalAmount("12+"), null);
+    assert.equal(evalAmount("4/0"), null);
+    assert.equal(evalAmount("2+abc"), null);
   });
 });
 

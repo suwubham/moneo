@@ -5,10 +5,13 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/core/action-state";
 import { enqueue } from "@/lib/offline/sync";
 import { readOfflineForm } from "@/lib/offline/validate";
+import { Search } from "lucide-react";
+import { AmountInput } from "../../_components/amount-input";
 import { CategoryIcon } from "../../_components/category-icon";
+import { DateField } from "../../_components/date-field";
 import { Segmented, segItem } from "../../_components/segmented";
 import { Field, FormError, Submit } from "../../_components/form";
-import { btn, btnDanger, btnPrimary, control, input, textarea } from "../../_components/styles";
+import { btn, btnDanger, btnPrimary, input, textarea } from "../../_components/styles";
 import { deleteTransactionAction, saveTransactionAction } from "./actions";
 
 export type Option = { id: string; name: string };
@@ -58,6 +61,10 @@ export function TransactionForm({
   const [confirming, setConfirming] = useState(false);
   const kind = direction === "out" ? "expense" : "income";
   const shown = categories.filter((c) => c.kind === kind);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = (name: string) => !q || name.toLowerCase().includes(q);
+  const found = shown.filter((c) => matches(c.name));
 
   useEffect(() => {
     if (state?.ok || del?.ok) onDone();
@@ -84,7 +91,10 @@ export function TransactionForm({
         <Segmented count={onMoveMoney ? 3 : 2} index={direction === "out" ? 0 : 1} className="bg-night">
           {(["out", "in"] as const).map((d) => (
             <label key={d} className={`${segItem(direction === d)} cursor-pointer py-2`}>
-              <input type="radio" name="direction" value={d} checked={direction === d} onChange={() => setDirection(d)} className="sr-only" />
+              <input type="radio" name="direction" value={d} checked={direction === d} onChange={() => {
+                  setDirection(d);
+                  setQuery("");
+                }} className="sr-only" />
               {d === "out" ? "money out" : "money in"}
             </label>
           ))}
@@ -100,40 +110,52 @@ export function TransactionForm({
           <input id="description" name="description" required maxLength={140} defaultValue={values.description} placeholder="Corner café" className={input} autoComplete="off" />
         </Field>
         <Field label="amount" name="amount" state={state}>
-          <input
-            id="amount"
-            name="amount"
-            required
-            inputMode="decimal"
-            defaultValue={values.amount}
-            placeholder="0.00"
-            className={`${control} w-32 text-right tabular-nums`}
-          />
+          <AmountInput defaultValue={values.amount} />
         </Field>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="date" name="occurredOn" state={state}>
-          <input id="occurredOn" name="occurredOn" type="date" required defaultValue={values.occurredOn} className={input} />
-        </Field>
-        <Field label="account" name="accountId" state={state}>
-          <select id="accountId" name="accountId" required defaultValue={values.accountId ?? ""} className={input}>
-            <option value="" disabled>
-              Pick one
+      <Field label="date" name="occurredOn" state={state}>
+        <DateField name="occurredOn" defaultValue={values.occurredOn} />
+      </Field>
+      <Field label="account" name="accountId" state={state}>
+        <select id="accountId" name="accountId" required defaultValue={values.accountId ?? ""} className={input}>
+          <option value="" disabled>
+            Pick one
+          </option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
             </option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+          ))}
+        </select>
+      </Field>
       <fieldset key={kind}>
         <legend className="label mb-2">category</legend>
-        <div className="flex max-h-48 flex-wrap gap-1.5 overflow-y-auto pr-1">
+        {shown.length > 0 && (
+          <div className="relative mb-2.5">
+            <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-ash" aria-hidden />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              // Enter picks the first match instead of saving the form.
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                e.currentTarget.form?.querySelector<HTMLInputElement>('label:not([hidden]) > input[name="categoryId"]:not([value=""])')?.click();
+              }}
+              placeholder="Find a category"
+              aria-label="Find a category"
+              autoComplete="off"
+              className={`${input} pl-10`}
+            />
+          </div>
+        )}
+        <div className="thin-scroll flex max-h-48 flex-wrap gap-1.5 overflow-y-auto pr-1">
           {[null, ...shown].map((c) => (
             <label
               key={c?.id ?? "none"}
+              // Hidden, not removed: a picked chip that the search filters out still sends its value.
+              hidden={c ? !matches(c.name) : !matches("none")}
               className="chip-pick flex cursor-pointer items-center gap-2 rounded-full border border-line bg-night py-1 pr-3 pl-1 text-[.88rem] text-ink-soft transition-colors duration-200 ease-soft hover:border-steel has-checked:border-ink has-checked:text-ink"
             >
               <input
@@ -147,6 +169,7 @@ export function TransactionForm({
               {c?.name ?? "None"}
             </label>
           ))}
+          {q && found.length === 0 && <p className="py-1 text-[.9rem] text-ink-soft">No category matches “{query.trim()}”.</p>}
         </div>
       </fieldset>
       {budgets.length > 0 ? (

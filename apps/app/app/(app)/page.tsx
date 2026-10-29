@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { requireProfile } from "@/lib/core/auth";
 import { aiEnabled } from "@/lib/core/config";
-import { currentMonth, isMonthKey, monthLabel, monthOf, todayIso } from "@/lib/core/dates";
+import { currentMonth, isMonthKey, monthLabel, monthOf, monthsBetween, shiftMonth, todayIso } from "@/lib/core/dates";
 import { formatMoney, toNumber } from "@/lib/core/money";
 import { balanceSplit } from "@/lib/modules/accounts/constants";
 import { getAccounts } from "@/lib/modules/accounts/service";
@@ -87,10 +87,13 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
   const month = monthOf(key);
   const isNow = key === currentMonth().key;
   const today = todayIso();
+  // The six-month charts move in fixed blocks that end on this month, so tapping an older month in them
+  // keeps the same six on screen (and this month one tap away). One month more is read for the comparison.
+  const windowEnd = shiftMonth(currentMonth().key, -6 * Math.floor(monthsBetween(key, currentMonth().key) / 6));
 
   const [accounts, flow, top, budgets, recent, pace, historyOf, categories, picked] = await Promise.all([
     getAccounts(profile.id),
-    getMonthlyFlow(profile.id, month, 6),
+    getMonthlyFlow(profile.id, windowEnd, 7),
     getSpendingByCategory(profile.id, month, 6),
     getBudgetProgress(profile.id, month),
     getTransactions(profile.id, { from: month.start, to: month.end }, { limit: 6, offset: 0 }),
@@ -117,10 +120,12 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     value: Math.round([...history.values()].reduce((s, series) => s + (series[i]?.balance ?? 0), 0) * 100) / 100,
   }));
   const split = balanceSplit(live);
-  const now = flow.at(-1)!;
-  const before = flow.at(-2)!;
+  const at = flow.findIndex((f) => f.month === key);
+  const now = flow[at];
+  const before = flow[at - 1];
+  const six = flow.slice(1);
   const monthName = monthLabel(key).split(" ")[0].toLowerCase();
-  const prevName = monthLabel(flow.at(-2)!.month).split(" ")[0].toLowerCase();
+  const prevName = monthLabel(before.month).split(" ")[0].toLowerCase();
   const spentTotal = top.reduce((s, t) => s + toNumber(t.spent), 0);
   const topMax = Math.max(1, ...top.map((t) => toNumber(t.spent)));
   const watch = budgets
@@ -134,7 +139,14 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     <div className="flex flex-col gap-3.5">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
         <MonthSwitch month={key} href={href} />
-        {!isNow && <p className="label">looking back at {monthLabel(key)}</p>}
+        {!isNow && (
+          <p className="label flex items-center gap-2">
+            looking back at {monthLabel(key)} ·
+            <Link href="/" scroll={false} className="text-ink underline-offset-4 hover:underline">
+              back to {monthLabel(currentMonth().key).split(" ")[0].toLowerCase()}
+            </Link>
+          </p>
+        )}
       </div>
 
       <div className="rise grid grid-cols-6 gap-3.5 lg:grid-cols-12">
@@ -168,7 +180,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             <ArrowRight className="size-3.5 shrink-0 transition-colors duration-300 ease-soft group-hover:text-ink" aria-hidden />
           </h2>
           <MiniColumns
-            data={flow.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), value: f.moneyIn }))}
+            data={six.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), value: f.moneyIn }))}
             active={key}
             color="var(--chart-in)"
             name="money in"
@@ -197,7 +209,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             <ArrowRight className="size-3.5 shrink-0 transition-colors duration-300 ease-soft group-hover:text-ink" aria-hidden />
           </h2>
           <MiniColumns
-            data={flow.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), value: f.moneyOut }))}
+            data={six.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), value: f.moneyOut }))}
             active={key}
             color="var(--chart-out)"
             name="money out"
@@ -223,7 +235,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             <span className="label hidden sm:inline">tap a month to open it</span>
           </div>
           <FlowChart
-            data={flow.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), moneyIn: f.moneyIn, moneyOut: f.moneyOut, href: href(f.month) }))}
+            data={six.map((f) => ({ key: f.month, label: monthLabel(f.month).slice(0, 3).toLowerCase(), moneyIn: f.moneyIn, moneyOut: f.moneyOut, href: href(f.month) }))}
             currency={cur}
             active={key}
           />
