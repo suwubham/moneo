@@ -13,6 +13,8 @@
   --steel: #669bbc;
   --frost: #a8cbe0;
   --amber: #e8c38a;
+  /* Status green: a budget on track. Not a category colour. */
+  --good: #4cbb5c;
   --on-accent: #00131d;
   --crimson: #c1121f;
 
@@ -47,6 +49,7 @@
     --steel: #2b6388;
     --frost: #003049;
     --amber: #780000;
+    --good: #006400;
     --on-accent: #fdf0d5;
     --grain-op: 0.06;
     --chart-in: #2a78d6;
@@ -75,6 +78,7 @@
   --steel: #2b6388;
   --frost: #003049;
   --amber: #780000;
+  --good: #006400;
   --on-accent: #fdf0d5;
   --grain-op: 0.06;
   --chart-in: #2a78d6;
@@ -130,6 +134,7 @@ body[data-scene="steel"] {
   --color-steel: var(--steel);
   --color-frost: var(--frost);
   --color-amber: var(--amber);
+  --color-good: var(--good);
   --color-on-accent: var(--on-accent);
   --color-crimson: var(--crimson);
   --color-scene: var(--scene);

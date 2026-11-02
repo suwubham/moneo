@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Budgets" };
 
 const fill = { fine: "bg-steel", close: "bg-amber", over: "bg-accent" } as const;
 const words = { fine: "on track", close: "close to the limit", over: "over" } as const;
-const wordTone = { fine: "", close: "text-amber", over: "text-accent" } as const;
+const wordTone = { fine: "text-good", close: "text-good", over: "text-accent" } as const;
 
 export default function BudgetsPage({ searchParams }: PageProps<"/budgets">) {
   return (
