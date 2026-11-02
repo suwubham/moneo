@@ -24,7 +24,8 @@ export function BudgetMonths({ history, currency, href }: { history: HistoryPoin
               <span className="flex items-baseline justify-end gap-2 whitespace-nowrap">
                 <span className="text-[.9rem] font-semibold tabular-nums">{formatMoney(h.spent, currency, { compact: true })}</span>
                 <span className={`label w-[5.5rem] text-right ${status === "over" ? "text-accent" : status === "close" ? "text-amber" : ""}`}>
-                  {Math.round(ratio * 100)}% {words[status]}
+                  {/* Over shows only the part past the limit (103% used is "3% over"); at least 1%, so a hair over never reads "0% over". */}
+                  {status === "over" ? Math.max(1, Math.round((ratio - 1) * 100)) : Math.round(ratio * 100)}% {words[status]}
                 </span>
               </span>
             </Link>

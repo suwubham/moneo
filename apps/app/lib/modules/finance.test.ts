@@ -75,9 +75,13 @@ describe("finance modules against Postgres", { skip: !hasDb && "no DATABASE_URL"
       { month: "2026-10", moneyIn: 2000, moneyOut: 42.5 },
     ]);
 
-    await saveBudget(me, { kind: "category", categoryId: dining.id, amount: "50.00" });
+    // Saving twice keeps one budget. A changed limit only counts from today's month on (tested below with real dates),
+    // so this October check saves the same limit both times and does not break once October is past.
     await saveBudget(me, { kind: "category", categoryId: dining.id, amount: "40.00" });
-    const [b] = await getBudgetProgress(me, oct);
+    await saveBudget(me, { kind: "category", categoryId: dining.id, amount: "40.00" });
+    const progress = await getBudgetProgress(me, oct);
+    assert.equal(progress.length, 1);
+    const [b] = progress;
     assert.equal(b.amount, "40.00");
     assert.equal(b.spent, "42.50");
     assert.equal(statusOf(b).status, "over");
