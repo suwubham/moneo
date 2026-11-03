@@ -92,3 +92,7 @@ To try it locally, point a Resend webhook at an ngrok URL for the dev server and
 5. Migrate production: add a `DATABASE_URL_UNPOOLED` secret to a GitHub `production` environment for `migrate.yml`, or run `npm run db:migrate` against it yourself.
 
 Each `vercel.json` skips the build when nothing in that app or `packages/` changed.
+
+## License
+
+Moneo is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE). You can read, change and self-host it for personal use, or in a charity, school, public research group or government body. Any commercial use needs a separate license from the owner.
