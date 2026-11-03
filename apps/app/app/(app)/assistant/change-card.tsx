@@ -123,6 +123,7 @@ function TxLine({ tx, was, currency, today, gone }: { tx: TxView; was: TxView | 
     if (was.date !== tx.date) diff.push(dayLabel(was.date, today));
     if (was.account !== tx.account) diff.push(was.account);
     if (was.category !== tx.category) diff.push(was.category ?? "no category");
+    if ((was.budget ?? null) !== (tx.budget ?? null)) diff.push(was.budget ? `budget ${was.budget}` : "no budget");
     if (was.note !== tx.note) diff.push(was.note ? `note “${was.note}”` : "no note");
   }
   return (
@@ -130,7 +131,9 @@ function TxLine({ tx, was, currency, today, gone }: { tx: TxView; was: TxView | 
       <div className="min-w-0">
         <p className={`truncate font-semibold ${gone ? "line-through decoration-ash" : ""}`}>{tx.description}</p>
         <p className="label mt-0.5">
-          {[dayLabel(tx.date, today), tx.account, tx.transfer ? "transfer" : (tx.category ?? "no category")].join(" · ")}
+          {[dayLabel(tx.date, today), tx.account, tx.transfer ? "transfer" : (tx.category ?? "no category"), tx.budget ? `budget ${tx.budget}` : null]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
         {tx.note && <p className="mt-0.5 truncate text-[.85rem] text-ink-soft">{tx.note}</p>}
         {diff.length > 0 && <p className="mt-0.5 text-[.85rem] text-ink-soft">was {diff.join(" · ")}</p>}

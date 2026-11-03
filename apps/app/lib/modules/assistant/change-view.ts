@@ -9,6 +9,8 @@ export type TxView = {
   date: string;
   account: string;
   category: string | null;
+  // A picked budget it counts towards. Category and total budgets count by category on their own.
+  budget?: string | null;
   note: string | null;
   transfer?: boolean;
 };

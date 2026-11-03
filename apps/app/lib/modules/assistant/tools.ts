@@ -117,6 +117,7 @@ export function financeTools(userId: string, box?: TurnSandbox, changes?: TurnCh
           amount: t.amount,
           account: t.accountName,
           category: t.categoryName ?? "Uncategorised",
+          budget: t.budgetName ?? undefined,
           note: t.note ?? undefined,
           transfer: t.transferId ? true : undefined,
         })),
@@ -176,14 +177,14 @@ export function financeTools(userId: string, box?: TurnSandbox, changes?: TurnCh
       const month = a.month && isMonthKey(a.month) ? monthOf(a.month) : currentMonth();
       const rows = (await getBudgetProgress(userId, month)).map((b) => {
         const { ratio, status } = statusOf(b);
-        return { budget: b.name, kind: b.kind, limit: b.amount, spent: b.spent, used: `${Math.round(ratio * 100)}%`, status };
+        return { id: b.id, budget: b.name, kind: b.kind, limit: b.amount, spent: b.spent, used: `${Math.round(ratio * 100)}%`, status };
       });
       if (wantsSave(a)) return saved("budget_status", a, rows, rows.length, config?.signal);
       return JSON.stringify(rows);
     },
     {
       name: "budget_status",
-      description: "Monthly budgets with how much has been spent against each one for a month (default: this month). kind is category (one spending category), total (all spending) or picked (only transactions the person added to it).",
+      description: "Monthly budgets with how much has been spent against each one for a month (default: this month). kind is category (one spending category), total (all spending) or picked (only transactions the person added to it). Use the id of a picked budget as budget_id when suggesting transactions.",
       schema: z.object({ month: monthKey.optional(), ...save }),
     },
   );
@@ -233,6 +234,7 @@ function changeTools(userId: string, changes: TurnChanges) {
             date: day,
             description: z.string().max(140).describe("Short payee or merchant name, the way the person would write it"),
             category_id: z.string().optional().describe("Category id from list_categories that fits; leave out if unsure"),
+            budget_id: z.string().optional().describe("Id of a budget with kind 'picked' from budget_status, only when the person names one"),
             note: z.string().max(500).optional(),
           }),
         )
@@ -255,6 +257,7 @@ function changeTools(userId: string, changes: TurnChanges) {
             date: day.optional(),
             description: z.string().max(140).optional(),
             category_id: z.string().optional().describe("Category id, or 'none' to clear it"),
+            budget_id: z.string().optional().describe("Id of a 'picked' budget from budget_status, or 'none' to take it out of its budget"),
             note: z.string().max(500).optional(),
           }),
         )

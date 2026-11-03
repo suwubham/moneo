@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { getDb } from "@/lib/db";
 import { createAccount, getAccounts } from "@/lib/modules/accounts/service";
+import { listBudgets } from "@/lib/modules/budgets/repository";
+import { getPickedBudgets, saveBudget } from "@/lib/modules/budgets/service";
 import { getCategories } from "@/lib/modules/categories/service";
 import { deleteAllData, getProfile } from "@/lib/modules/profiles/service";
 import { getTransactions } from "@/lib/modules/transactions/service";
@@ -123,6 +125,36 @@ describe("suggested changes against Postgres", { skip: !hasDb && "no DATABASE_UR
     const results = await saveChanges(me, [delId]);
     assert.deepEqual(results, [{ id: delId, ok: true }]);
     assert.equal((await getTransactions(me, {})).length, 0);
+  });
+
+  test("a transaction can go into a picked budget, and only a picked one", async () => {
+    await saveBudget(me, { kind: "picked", name: "Trip", amount: "50000" });
+    const [food] = (await getCategories(me)).filter((c) => c.kind === "expense");
+    await saveBudget(me, { kind: "category", categoryId: food.id, amount: "9000" });
+    const [trip] = await getPickedBudgets(me);
+    const categoryBudget = (await listBudgets(getDb(), me)).find((b) => b.kind === "category")!;
+    await saveBudget(other, { kind: "picked", name: "Theirs", amount: "1" });
+    const [theirs] = await getPickedBudgets(other);
+
+    const turn = new TurnChanges();
+    const res = await suggestNewTransactions(me, turn, [
+      { account_id: account, direction: "out", amount: "3000", date: "2026-10-10", description: "Hotel", budget_id: trip.id },
+      { account_id: account, direction: "out", amount: "20", date: "2026-10-10", description: "Snack", budget_id: categoryBudget.id },
+      { account_id: account, direction: "out", amount: "30", date: "2026-10-10", description: "Taxi", budget_id: theirs.id },
+    ]);
+    assert.equal(res.suggested, 1);
+    assert.deepEqual(res.problems.map((p) => p.item), [1, 2]);
+    assert.equal(turn.items[0].view.after && "budget" in turn.items[0].view.after && turn.items[0].view.after.budget, "Trip");
+    const [id] = await store(me, turn);
+    await saveChange(me, id);
+    const [hotel] = await getTransactions(me, { q: "Hotel" });
+    assert.equal(hotel.budgetId, trip.id);
+
+    const out = new TurnChanges();
+    await suggestTransactionEdits(me, out, [{ id: hotel.id, budget_id: "none" }]);
+    const [outId] = await store(me, out);
+    await saveChange(me, outId);
+    assert.equal((await getTransactions(me, { q: "Hotel" }))[0].budgetId, null);
   });
 
   test("accounts can be added, changed and deleted, and the list is checked", async () => {

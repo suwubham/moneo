@@ -7,6 +7,7 @@ import { getDb, unitOfWork } from "@/lib/db";
 import type { AccountWithBalance } from "@/lib/modules/accounts/repository";
 import { type AccountKind, isOwed } from "@/lib/modules/accounts/constants";
 import { accountInput, assertAccount, createAccount, deleteAccount, getAccounts, updateAccount } from "@/lib/modules/accounts/service";
+import { getPickedBudgets } from "@/lib/modules/budgets/service";
 import { getCategories } from "@/lib/modules/categories/service";
 import { findTransaction, listForMatching } from "@/lib/modules/transactions/repository";
 import { createTransaction, deleteTransaction, transactionInput, updateTransaction } from "@/lib/modules/transactions/service";
@@ -38,11 +39,11 @@ export class TurnChanges {
 
 type Problem = { item: number; problem: string };
 type Category = { id: string; name: string; kind: string };
-type Lists = { accounts: AccountWithBalance[]; categories: Category[] };
+type Lists = { accounts: AccountWithBalance[]; categories: Category[]; budgets: { id: string; name: string }[] };
 
 async function lists(userId: string): Promise<Lists> {
-  const [accounts, categories] = await Promise.all([getAccounts(userId), getCategories(userId)]);
-  return { accounts, categories };
+  const [accounts, categories, budgets] = await Promise.all([getAccounts(userId), getCategories(userId), getPickedBudgets(userId)]);
+  return { accounts, categories, budgets };
 }
 
 const nameOf = (rows: { id: string; name: string }[], id: string | null | undefined) => (id ? (rows.find((r) => r.id === id)?.name ?? null) : null);
@@ -65,18 +66,40 @@ function pickCategory(l: Lists, raw: string | undefined): { id: string | null } 
   return l.categories.some((c) => c.id === raw) ? { id: raw } : { problem: "Unknown category_id. Use an id from list_categories, or 'none'." };
 }
 
-function txView(l: Lists, t: { accountId: string; categoryId: string | null; amount: string; occurredOn: string; description: string; note: string | null }): TxView {
+// Only "picked" budgets hold transactions; "none" takes it out of one.
+function pickBudget(l: Lists, raw: string | undefined): { id: string | null } | { problem: string } | undefined {
+  if (raw === undefined || raw === "") return undefined;
+  if (raw === "none") return { id: null };
+  return l.budgets.some((b) => b.id === raw)
+    ? { id: raw }
+    : { problem: "Unknown budget_id. Use the id of a budget with kind 'picked' from budget_status, or 'none'. Category and total budgets count transactions by category on their own." };
+}
+
+function txView(
+  l: Lists,
+  t: { accountId: string; categoryId: string | null; budgetId?: string | null; amount: string; occurredOn: string; description: string; note: string | null },
+): TxView {
   return {
     description: t.description,
     amount: plainDecimal(t.amount),
     date: t.occurredOn,
     account: nameOf(l.accounts, t.accountId) ?? "?",
     category: nameOf(l.categories, t.categoryId),
+    budget: nameOf(l.budgets, t.budgetId),
     note: t.note,
   };
 }
 
-export type NewTx = { account_id: string; direction: "in" | "out"; amount: string; date: string; description: string; category_id?: string; note?: string };
+export type NewTx = {
+  account_id: string;
+  direction: "in" | "out";
+  amount: string;
+  date: string;
+  description: string;
+  category_id?: string;
+  budget_id?: string;
+  note?: string;
+};
 
 export async function suggestNewTransactions(userId: string, turn: TurnChanges, items: NewTx[]) {
   const l = await lists(userId);
@@ -87,9 +110,12 @@ export async function suggestNewTransactions(userId: string, turn: TurnChanges, 
     if (!l.accounts.some((a) => a.id === it.account_id)) return problems.push({ item, problem: "Unknown account_id. Use an id from list_accounts." });
     const cat = pickCategory(l, it.category_id);
     if (cat && "problem" in cat) return problems.push({ item, problem: cat.problem });
+    const budget = pickBudget(l, it.budget_id);
+    if (budget && "problem" in budget) return problems.push({ item, problem: budget.problem });
     const parsed = transactionInput.safeParse({
       accountId: it.account_id,
       categoryId: cat?.id ?? null,
+      budgetId: budget?.id ?? null,
       direction: it.direction,
       amount: String(it.amount),
       occurredOn: it.date,
@@ -133,7 +159,17 @@ export async function suggestNewTransactions(userId: string, turn: TurnChanges, 
   return { suggested: ok.length, problems, maybe_already_saved: maybeSaved };
 }
 
-export type TxEdit = { id: string; account_id?: string; direction?: "in" | "out"; amount?: string; date?: string; description?: string; category_id?: string; note?: string };
+export type TxEdit = {
+  id: string;
+  account_id?: string;
+  direction?: "in" | "out";
+  amount?: string;
+  date?: string;
+  description?: string;
+  category_id?: string;
+  budget_id?: string;
+  note?: string;
+};
 
 export async function suggestTransactionEdits(userId: string, turn: TurnChanges, items: TxEdit[]) {
   const l = await lists(userId);
@@ -159,6 +195,11 @@ export async function suggestTransactionEdits(userId: string, turn: TurnChanges,
       problems.push({ item, problem: cat.problem });
       continue;
     }
+    const budget = pickBudget(l, it.budget_id);
+    if (budget && "problem" in budget) {
+      problems.push({ item, problem: budget.problem });
+      continue;
+    }
     const parsed = transactionInput.safeParse({
       accountId: it.account_id ?? row.accountId,
       categoryId: cat ? cat.id : row.categoryId,
@@ -167,7 +208,7 @@ export async function suggestTransactionEdits(userId: string, turn: TurnChanges,
       occurredOn: it.date ?? row.occurredOn,
       description: it.description ?? row.description,
       note: it.note ?? row.note,
-      budgetId: row.budgetId,
+      budgetId: budget ? budget.id : row.budgetId,
       excludeFromBudgets: row.excludeFromBudgets,
     });
     if (!parsed.success) {
