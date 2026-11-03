@@ -82,3 +82,13 @@ Each person can get a private address (`<token>@APP_INBOUND_DOMAIN`, in Settings
 Gemini reads the email (`lib/modules/inbound/read.ts`) with the person's accounts, categories and hints ("Corner Store" → "Snacks, category Food", "card ending 1234" → "my savings account") and returns a structured draft. `settleDraft` in `parse.ts` checks it: ids must be the person's own, the amount and date must be valid, and the currency must be theirs. A draft that passes is saved straight away; anything else waits under "needs you" in Settings, already filled in. Gmail's forwarding check (a confirm link, or a code in older emails) is caught before the model and shown there as a button. `inbox_emails` keeps only what was read, never the email, and its unique provider id stops a retried webhook from adding twice. A failed model call answers 502, so Resend tries again later.
 
 To try it locally, point a Resend webhook at an ngrok URL for the dev server and send mail to your address.
+
+## Deploy your own
+
+1. Make two Vercel projects from this repo: one with root `apps/site`, one with root `apps/app`.
+2. Add a Postgres database to the app project (Neon from the Vercel marketplace works, with a branch per preview).
+3. Set the app's env vars from `apps/app/.env.example`, and `APP_SITE_URL` and `APP_WEB_URL` on both projects.
+4. Set `regions` in `apps/app/vercel.json` to the region of your database.
+5. Migrate production: add a `DATABASE_URL_UNPOOLED` secret to a GitHub `production` environment for `migrate.yml`, or run `npm run db:migrate` against it yourself.
+
+Each `vercel.json` skips the build when nothing in that app or `packages/` changed.
