@@ -28,3 +28,8 @@ export function getDb(): Db {
 export function unitOfWork<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
   return getDb().transaction(fn);
 }
+
+// Runs fn in the caller's transaction when there is one, or in a new one. Lets a service write join a bigger unit.
+export function inUnit<T>(tx: Tx | undefined, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return tx ? fn(tx) : unitOfWork(fn);
+}

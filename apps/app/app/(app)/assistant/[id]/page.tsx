@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { requireProfile } from "@/lib/core/auth";
+import { todayIso } from "@/lib/core/dates";
 import { getConversation } from "@/lib/modules/assistant/service";
 import { ListSkeleton } from "../../../_components/skeleton";
 import { Chat } from "../chat";
@@ -26,7 +27,18 @@ async function Conversation({ params }: { params: PageProps<"/assistant/[id]">["
     <Chat
       key={id}
       conversationId={id}
-      initial={found.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, tools: m.tools, files: m.files }))}
+      currency={profile.currency}
+      today={todayIso()}
+      initial={found.messages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        tools: m.tools,
+        files: m.files,
+        changes: m.changes,
+        images: m.images,
+        stored: true,
+      }))}
     />
   );
 }

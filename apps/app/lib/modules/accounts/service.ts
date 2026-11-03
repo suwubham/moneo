@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { AppError, notFound } from "@/lib/core/errors";
 import { asOwed, signedAmountInput } from "@/lib/core/money";
-import { getDb, type Tx, unitOfWork } from "@/lib/db";
+import { getDb, inUnit, type Tx, unitOfWork } from "@/lib/db";
 import { categoryColors } from "@/lib/modules/categories/look";
 import { findAccount, insertAccount, listAccounts, patchAccount, removeAccount, setPositions } from "./repository";
 import { accountIcons, accountKinds, isOwed } from "./constants";
@@ -16,7 +16,7 @@ export const accountInput = z.object({
   color: z.preprocess((v) => (v === "" ? null : v), z.enum(categoryColors).nullable().optional()),
 });
 
-type AccountInput = z.infer<typeof accountInput>;
+export type AccountInput = z.infer<typeof accountInput>;
 
 // For a card or loan the starting balance is what you owed then, whichever sign it was typed with.
 function toRow(input: AccountInput) {
@@ -27,12 +27,12 @@ export function getAccounts(userId: string) {
   return listAccounts(getDb(), userId);
 }
 
-export async function createAccount(userId: string, input: AccountInput) {
-  return unitOfWork((tx) => insertAccount(tx, { userId, ...toRow(input) }));
+export async function createAccount(userId: string, input: AccountInput, outer?: Tx) {
+  return inUnit(outer, (tx) => insertAccount(tx, { userId, ...toRow(input) }));
 }
 
-export async function updateAccount(userId: string, id: string, input: AccountInput) {
-  return unitOfWork(async (tx) => {
+export async function updateAccount(userId: string, id: string, input: AccountInput, outer?: Tx) {
+  return inUnit(outer, async (tx) => {
     const row = await patchAccount(tx, userId, id, toRow(input));
     if (!row) throw notFound("account");
     return row;
@@ -57,8 +57,8 @@ export async function setArchived(userId: string, id: string, archived: boolean)
   });
 }
 
-export async function deleteAccount(userId: string, id: string) {
-  await unitOfWork(async (tx) => {
+export async function deleteAccount(userId: string, id: string, outer?: Tx) {
+  await inUnit(outer, async (tx) => {
     if (!(await removeAccount(tx, userId, id))) throw notFound("account");
   });
 }

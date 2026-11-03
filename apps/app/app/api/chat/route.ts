@@ -6,6 +6,7 @@ import { aiDisabled, errorResponse } from "@/lib/core/errors";
 import { chatInput, startTurn, streamReply } from "@/lib/modules/assistant/service";
 import { turnSandbox } from "@/lib/modules/files/service";
 
+// Pictures arrive inside the JSON body; the browser shrinks them so the body stays under Vercel's 4.5 MB.
 // A chart can wake the chat's sandbox and run a script or two, on top of several model calls.
 export const maxDuration = 300;
 
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     const box = sandboxEnabled ? turnSandbox(profile.id, turn.conversation.id) : undefined;
     // Stopping saves the sandbox's files and takes a few seconds, so it runs after the reply has finished.
     if (box) after(() => box.stop());
-    const events = streamReply({ userId: profile.id, currency: profile.currency, box }, turn, input.message, req.signal);
+    const events = streamReply({ userId: profile.id, currency: profile.currency, box }, turn, input, req.signal);
     const enc = new TextEncoder();
 
     const body = new ReadableStream<Uint8Array>({

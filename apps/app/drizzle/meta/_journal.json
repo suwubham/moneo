@@ -64,6 +64,13 @@
       "when": 1792784726734,
       "tag": "0008_bank_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793736697482,
+      "tag": "0009_assistant_changes",
+      "breakpoints": true
     }
   ]
 }

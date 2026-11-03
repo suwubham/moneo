@@ -2,12 +2,54 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import type { ChangeView } from "@/lib/modules/assistant/change-view";
 import type { ChatEvent } from "@/lib/modules/assistant/service";
 import type { FileMeta } from "@/lib/modules/files/service";
+import { ChangeCard } from "./change-card";
 import { FileCard } from "./file-card";
 import { Markdown } from "./markdown";
 
-type Msg = { id: string; role: "user" | "assistant"; content: string; tools: string[]; files?: FileMeta[]; live?: boolean; failed?: string };
+type Msg = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  tools: string[];
+  files?: FileMeta[];
+  changes?: ChangeView[];
+  // Pictures sent in this session (shown as thumbnails), or how many came with a stored message.
+  pictures?: string[];
+  images?: number;
+  live?: boolean;
+  // The reply was stored, so its suggested changes can be saved. Stored messages always are.
+  stored?: boolean;
+  failed?: string;
+};
+
+const MAX_PICTURES = 4;
+const MAX_SIDE = 2048;
+
+// Shrinks a picture in the browser to a JPEG data URL under about 1 MB, so four fit in one request.
+async function shrink(file: Blob): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no canvas");
+  // JPEG has no transparency; a see-through PNG would otherwise turn black.
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  let quality = 0.85;
+  let url = canvas.toDataURL("image/jpeg", quality);
+  while (url.length > 1_000_000 && quality > 0.4) {
+    quality -= 0.15;
+    url = canvas.toDataURL("image/jpeg", quality);
+  }
+  return url;
+}
 
 const toolWords: Record<string, string> = {
   list_accounts: "checked accounts",
@@ -17,6 +59,11 @@ const toolWords: Record<string, string> = {
   monthly_cash_flow: "looked at cash flow",
   budget_status: "checked budgets",
   make_files: "made a file",
+  suggest_new_transactions: "suggested transactions",
+  suggest_transaction_edits: "suggested edits",
+  suggest_transaction_deletes: "suggested deletes",
+  suggest_account: "suggested an account change",
+  suggest_account_delete: "suggested deleting an account",
 };
 
 const starters = [
@@ -31,11 +78,26 @@ const sendBtn =
 const stopBtn =
   "grid size-11 shrink-0 place-items-center rounded-full border border-line bg-night-3 text-ink transition-colors duration-300 ease-soft hover:border-accent";
 
-export function Chat({ conversationId, initial, prefill }: { conversationId?: string; initial: Msg[]; prefill?: string }) {
+export function Chat({
+  conversationId,
+  initial,
+  prefill,
+  currency,
+  today,
+}: {
+  conversationId?: string;
+  initial: Msg[];
+  prefill?: string;
+  currency: string;
+  today: string;
+}) {
   const router = useRouter();
   const [messages, setMessages] = useState<Msg[]>(initial);
   const [text, setText] = useState(prefill ?? "");
+  const [pictures, setPictures] = useState<string[]>([]);
+  const [pictureError, setPictureError] = useState("");
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const idRef = useRef(conversationId);
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -51,16 +113,32 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
     setMessages((all) => [...all.slice(0, -1), fn(all[all.length - 1])]);
   }
 
+  async function addPictures(files: Blob[]) {
+    const room = MAX_PICTURES - pictures.length;
+    const picked = files.filter((f) => f.type.startsWith("image/"));
+    if (!picked.length) return;
+    setPictureError(picked.length > room ? `Up to ${MAX_PICTURES} pictures at a time.` : "");
+    try {
+      const urls = await Promise.all(picked.slice(0, Math.max(0, room)).map(shrink));
+      setPictures((p) => [...p, ...urls].slice(0, MAX_PICTURES));
+    } catch {
+      setPictureError("That picture could not be read. Try a PNG or JPEG.");
+    }
+  }
+
   async function send(raw: string) {
     const message = raw.trim();
-    if (!message || busy) return;
+    const sending = pictures;
+    if ((!message && !sending.length) || busy) return;
     setText("");
+    setPictures([]);
+    setPictureError("");
     setBusy(true);
     const ac = new AbortController();
     abortRef.current = ac;
     setMessages((all) => [
       ...all,
-      { id: `u-${Date.now()}`, role: "user", content: message, tools: [] },
+      { id: `u-${Date.now()}`, role: "user", content: message, tools: [], pictures: sending },
       { id: `a-${Date.now()}`, role: "assistant", content: "", tools: [], live: true },
     ]);
 
@@ -68,7 +146,7 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: idRef.current ?? null, message }),
+        body: JSON.stringify({ conversationId: idRef.current ?? null, message, images: sending }),
         signal: ac.signal,
       });
       if (!res.ok || !res.body) {
@@ -97,6 +175,10 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
             patchLast((m) => ({ ...m, tools: m.tools.includes(ev.name) ? m.tools : [...m.tools, ev.name] }));
           } else if (ev.t === "file") {
             patchLast((m) => ({ ...m, files: [...(m.files ?? []), ev.file] }));
+          } else if (ev.t === "change") {
+            patchLast((m) => ({ ...m, changes: [...(m.changes ?? []), ev.change] }));
+          } else if (ev.t === "done") {
+            patchLast((m) => ({ ...m, stored: true }));
           } else if (ev.t === "error") {
             patchLast((m) => ({ ...m, failed: ev.error.message }));
           }
@@ -120,6 +202,7 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
           <div className="pt-4">
             <p className="max-w-[40ch] text-[1.15rem] text-ink-soft">
               Ask about your own money. It reads your accounts, transactions and budgets, and does the adding up for you.
+              Add a screenshot from your bank and it finds the transactions you have not added yet.
             </p>
             <ul className="mt-6 flex flex-wrap gap-2">
               {starters.map((s) => (
@@ -140,7 +223,24 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
             {messages.map((m) => (
               <li key={m.id} className={m.role === "user" ? "flex justify-end" : ""}>
                 {m.role === "user" ? (
-                  <p className="max-w-[85%] rounded-[1.4rem_1.4rem_.4rem_1.4rem] bg-night-3 px-4 py-2.5 whitespace-pre-wrap">{m.content}</p>
+                  <div className="flex max-w-[85%] flex-col items-end gap-2">
+                    {m.pictures && m.pictures.length > 0 && (
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {m.pictures.map((src, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element -- a local data URL, nothing to optimise
+                          <img key={i} src={src} alt={`Picture ${i + 1}`} className="h-28 w-auto rounded-xl border border-line object-cover" />
+                        ))}
+                      </div>
+                    )}
+                    {!m.pictures?.length && m.images ? (
+                      <p className="label">
+                        {m.images} picture{m.images === 1 ? "" : "s"} · not kept
+                      </p>
+                    ) : null}
+                    {m.content && (
+                      <p className="rounded-[1.4rem_1.4rem_.4rem_1.4rem] bg-night-3 px-4 py-2.5 whitespace-pre-wrap">{m.content}</p>
+                    )}
+                  </div>
                 ) : (
                   <div className="max-w-[68ch]">
                     {m.tools.length > 0 && (
@@ -155,6 +255,9 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
                       {m.live && m.content && <span className="caret" aria-hidden />}
                     </div>
                     {m.files?.map((f) => <FileCard key={f.id} file={f} />)}
+                    {m.changes && m.changes.length > 0 && (
+                      <ChangeCard changes={m.changes} currency={currency} today={today} ready={!m.live && Boolean(m.stored)} lost={!m.live && !m.stored} />
+                    )}
                     {m.failed && <p className="mt-2 text-[.9rem] text-accent">{m.failed}</p>}
                   </div>
                 )}
@@ -170,8 +273,58 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
           e.preventDefault();
           send(text);
         }}
-        className="sticky bottom-[calc(max(.5rem,env(safe-area-inset-bottom))+4.9rem)] mt-8 flex items-end gap-2 rounded-[1.6rem] border border-line bg-night-2 p-2 pl-4 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] focus-within:border-steel md:bottom-4"
+        className="sticky bottom-[calc(max(.5rem,env(safe-area-inset-bottom))+4.9rem)] mt-8 flex flex-wrap items-end gap-2 rounded-[1.6rem] border border-line bg-night-2 p-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] focus-within:border-steel md:bottom-4"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          addPictures([...e.dataTransfer.files]);
+        }}
       >
+        {(pictures.length > 0 || pictureError) && (
+          <div className="flex w-full flex-wrap items-center gap-2 px-2 pt-1">
+            {pictures.map((src, i) => (
+              <span key={i} className="drop-in relative">
+                {/* eslint-disable-next-line @next/next/no-img-element -- a local data URL, nothing to optimise */}
+                <img src={src} alt={`Picture ${i + 1} to send`} className="size-16 rounded-lg border border-line object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPictures((p) => p.filter((_, j) => j !== i))}
+                  className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full border border-line bg-night-3 text-ink transition-[scale] duration-100 active:scale-90"
+                  aria-label={`Remove picture ${i + 1}`}
+                >
+                  <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden>
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              </span>
+            ))}
+            {pictureError && <p className="text-[.85rem] text-accent">{pictureError}</p>}
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            addPictures([...(e.target.files ?? [])]);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy || pictures.length >= MAX_PICTURES}
+          className="grid size-11 shrink-0 place-items-center rounded-full text-ink-soft transition-[color,scale] duration-300 ease-soft hover:text-ink active:scale-[.94] active:duration-100 disabled:opacity-40"
+          aria-label="Add a picture"
+        >
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <circle cx="9" cy="10" r="1.8" />
+            <path d="M21 16l-5-5-9 9" />
+          </svg>
+        </button>
         <label htmlFor="ask" className="sr-only">
           Ask about your money
         </label>
@@ -180,6 +333,13 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
           ref={boxRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => {
+            const files = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+            if (files.length) {
+              e.preventDefault();
+              addPictures(files);
+            }
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
@@ -189,21 +349,21 @@ export function Chat({ conversationId, initial, prefill }: { conversationId?: st
           rows={1}
           maxLength={2000}
           placeholder="How much went on groceries in September?"
-          className="max-h-40 min-h-11 flex-1 resize-none bg-transparent py-2.5 text-ink outline-none [field-sizing:content] placeholder:text-ash"
+          className="max-h-40 min-h-11 min-w-0 flex-1 resize-none bg-transparent py-2.5 text-ink outline-none [field-sizing:content] placeholder:text-ash"
         />
         {busy ? (
           <button type="button" onClick={() => abortRef.current?.abort()} className={stopBtn} aria-label="Stop">
             <span className="size-3 rounded-[3px] bg-current" />
           </button>
         ) : (
-          <button type="submit" disabled={!text.trim()} className={sendBtn} aria-label="Send">
+          <button type="submit" disabled={!text.trim() && !pictures.length} className={sendBtn} aria-label="Send">
             <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
               <path d="M12 19V5M5 12l7-7 7 7" />
             </svg>
           </button>
         )}
       </form>
-      <p className="label mt-2 text-center">It reads your data to answer. It can be wrong, so check numbers that matter.</p>
+      <p className="label mt-2 text-center">It reads your data to answer and changes nothing until you tap save. It can be wrong, so check what matters.</p>
     </div>
   );
 }

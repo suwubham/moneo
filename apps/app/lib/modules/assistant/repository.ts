@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Conn } from "@/lib/db";
-import { type MessageRole, conversations, messages } from "./schema";
+import { type ChangeStatus, type MessageRole, assistantChanges, conversations, messages } from "./schema";
 
 export function listConversations(c: Conn, userId: string, limit = 50) {
   return c
@@ -43,7 +43,7 @@ export function listMessages(c: Conn, conversationId: string) {
 
 export async function lastMessages(c: Conn, conversationId: string, limit: number) {
   const rows = await c
-    .select({ role: messages.role, content: messages.content })
+    .select({ id: messages.id, role: messages.role, content: messages.content, images: messages.images })
     .from(messages)
     .where(eq(messages.conversationId, conversationId))
     .orderBy(desc(messages.createdAt))
@@ -53,7 +53,7 @@ export async function lastMessages(c: Conn, conversationId: string, limit: numbe
 
 export async function insertMessage(
   c: Conn,
-  row: { conversationId: string; userId: string; role: MessageRole; content: string; tools?: string[]; data?: string[] },
+  row: { conversationId: string; userId: string; role: MessageRole; content: string; tools?: string[]; data?: string[]; images?: number },
 ) {
   const [saved] = await c.insert(messages).values(row).returning();
   return saved;
@@ -80,4 +80,35 @@ export async function savedData(c: Conn, conversationId: string) {
 export async function conversationIds(c: Conn, userId: string) {
   const rows = await c.select({ id: conversations.id }).from(conversations).where(eq(conversations.userId, userId));
   return rows.map((r) => r.id);
+}
+
+export async function insertChanges(c: Conn, rows: (typeof assistantChanges.$inferInsert)[]) {
+  if (rows.length) await c.insert(assistantChanges).values(rows);
+}
+
+export function listChanges(c: Conn, userId: string, messageIds: string[]) {
+  if (!messageIds.length) return Promise.resolve([]);
+  return c
+    .select()
+    .from(assistantChanges)
+    .where(and(eq(assistantChanges.userId, userId), inArray(assistantChanges.messageId, messageIds)))
+    .orderBy(asc(assistantChanges.createdAt), asc(assistantChanges.id));
+}
+
+// Locks the row so two taps on Save cannot both write.
+export async function lockChange(c: Conn, userId: string, id: string) {
+  const [row] = await c
+    .select()
+    .from(assistantChanges)
+    .where(and(eq(assistantChanges.userId, userId), eq(assistantChanges.id, id)))
+    .limit(1)
+    .for("update");
+  return row ?? null;
+}
+
+export async function setChangeStatus(c: Conn, userId: string, id: string, status: ChangeStatus) {
+  await c
+    .update(assistantChanges)
+    .set({ status })
+    .where(and(eq(assistantChanges.userId, userId), eq(assistantChanges.id, id)));
 }

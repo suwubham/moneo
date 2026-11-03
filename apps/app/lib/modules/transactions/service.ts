@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { AppError, notFound, validationError } from "@/lib/core/errors";
 import { amountInput, withSign } from "@/lib/core/money";
-import { getDb, unitOfWork } from "@/lib/db";
+import { type Tx, getDb, inUnit, unitOfWork } from "@/lib/db";
 import { assertAccount } from "@/lib/modules/accounts/service";
 import { assertPickedBudget } from "@/lib/modules/budgets/service";
 import { assertCategory } from "@/lib/modules/categories/service";
@@ -69,8 +69,8 @@ function toRow(input: TransactionInput) {
   return { ...rest, budgetId, excludeFromBudgets, amount: withSign(amount, direction) };
 }
 
-export async function createTransaction(userId: string, input: TransactionInput) {
-  return unitOfWork(async (tx) => {
+export async function createTransaction(userId: string, input: TransactionInput, outer?: Tx) {
+  return inUnit(outer, async (tx) => {
     await assertAccount(userId, input.accountId, tx);
     await assertCategory(userId, input.categoryId, tx);
     await assertPickedBudget(userId, input.budgetId, tx);
@@ -95,8 +95,8 @@ export async function createTransactionOnce(userId: string, id: string, input: T
 // One row of a transfer is changed through its transfer, so the two rows never disagree.
 const partOfTransfer = () => new AppError(409, "part_of_transfer", "This is one side of a transfer. Change the transfer instead.");
 
-export async function updateTransaction(userId: string, id: string, input: TransactionInput) {
-  return unitOfWork(async (tx) => {
+export async function updateTransaction(userId: string, id: string, input: TransactionInput, outer?: Tx) {
+  return inUnit(outer, async (tx) => {
     if ((await findTransaction(tx, userId, id))?.transferId) throw partOfTransfer();
     await assertAccount(userId, input.accountId, tx);
     await assertCategory(userId, input.categoryId, tx);
@@ -108,8 +108,8 @@ export async function updateTransaction(userId: string, id: string, input: Trans
 }
 
 // Deleting either row of a transfer deletes both.
-export async function deleteTransaction(userId: string, id: string) {
-  await unitOfWork(async (tx) => {
+export async function deleteTransaction(userId: string, id: string, outer?: Tx) {
+  await inUnit(outer, async (tx) => {
     const row = await findTransaction(tx, userId, id);
     if (!row) throw notFound("transaction");
     if (row.transferId) await removeTransfer(tx, userId, row.transferId);

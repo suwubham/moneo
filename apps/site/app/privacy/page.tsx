@@ -83,6 +83,15 @@ export default function Privacy() {
             we show it to you. We only send what that feature needs, not your whole history at once.
           </p>
           <p className={p}>
+            You can add pictures to a message in the assistant, like a screenshot of your bank app. They are made smaller in
+            your browser and sent with that one message to Vertex AI, so the model can read them. We do not store the
+            pictures; we only keep a note that a message had them.
+          </p>
+          <p className={p}>
+            The assistant can suggest new, changed or deleted transactions and accounts. We keep each suggestion with the chat,
+            and it changes nothing until you tap Save on it.
+          </p>
+          <p className={p}>
             When the assistant answers with figures, it usually also shows a view (a small chart, card or widget) and can make
             files to download. For these, the data it needs is copied
             to a private, isolated computer at Vercel Sandbox (in Singapore) that has no internet access, and a short script
@@ -95,7 +104,7 @@ export default function Privacy() {
           <ul className="mt-4 flex list-disc flex-col gap-2 pl-5 marker:text-ash">
             <li className={li}>We don&apos;t sell your data.</li>
             <li className={li}>We don&apos;t write the text of your messages or transactions into our logs.</li>
-            <li className={li}>The assistant can read your data, but it can&apos;t move money or change anything.</li>
+            <li className={li}>The assistant can&apos;t move money, and it changes your data only when you tap Save on a suggestion.</li>
           </ul>
 
           <h2 className={h2}>Deleting your data</h2>

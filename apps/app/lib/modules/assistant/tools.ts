@@ -9,6 +9,15 @@ import { getMonthlyFlow, getSpendingByCategory } from "@/lib/modules/reports/ser
 import { getTotals, getTransactions } from "@/lib/modules/transactions/service";
 import { log } from "@/lib/core/log";
 import { SANDBOX_ROWS, type TurnSandbox, sandboxTransactions } from "@/lib/modules/files/service";
+import { accountKinds } from "@/lib/modules/accounts/constants";
+import {
+  type TurnChanges,
+  suggestAccount,
+  suggestAccountDelete,
+  suggestNewTransactions,
+  suggestTransactionDeletes,
+  suggestTransactionEdits,
+} from "./changes";
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Date as YYYY-MM-DD");
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,7 +27,8 @@ const sandboxFail = "The sandbox did not work just now. Try once more; if it fai
 
 // Every tool closes over the signed-in user's id. The model never chooses whose data it reads.
 // With a sandbox for this turn, the data tools can also save their full result into it for make_files.
-export function financeTools(userId: string, box?: TurnSandbox) {
+// With `changes`, the suggest_* tools are added. They write nothing: each suggestion becomes a card the person saves or skips.
+export function financeTools(userId: string, box?: TurnSandbox, changes?: TurnChanges) {
   const save = box
     ? {
         save_to_sandbox: z
@@ -101,12 +111,14 @@ export function financeTools(userId: string, box?: TurnSandbox) {
         totals: sum,
         shown: rows.length,
         transactions: rows.map((t) => ({
+          id: t.id,
           date: t.occurredOn,
           description: t.description,
           amount: t.amount,
           account: t.accountName,
           category: t.categoryName ?? "Uncategorised",
           note: t.note ?? undefined,
+          transfer: t.transferId ? true : undefined,
         })),
       });
     },
@@ -176,7 +188,8 @@ export function financeTools(userId: string, box?: TurnSandbox) {
     },
   );
 
-  const tools = [listAccounts, listCategories, searchTransactions, spendingByCategory, cashFlow, budgetStatus];
+  const reads = [listAccounts, listCategories, searchTransactions, spendingByCategory, cashFlow, budgetStatus];
+  const tools = changes ? [...reads, ...changeTools(userId, changes)] : reads;
   if (!box) return tools;
 
   const makeFiles = tool(
@@ -197,6 +210,86 @@ export function financeTools(userId: string, box?: TurnSandbox) {
   );
 
   return [...tools, makeFiles];
+}
+
+const SUGGEST = " Nothing is saved: the person sees a card under your reply and taps Save or Skip on each one.";
+const amountText = z.string().max(20).describe("Positive amount, digits and a dot only, e.g. 1250.50");
+const accountKind = z.enum(accountKinds).describe("checking, savings, credit (a credit card), cash, investment or loan");
+
+function changeTools(userId: string, changes: TurnChanges) {
+  const addTransactions = tool(async (a) => JSON.stringify(await suggestNewTransactions(userId, changes, a.transactions)), {
+    name: "suggest_new_transactions",
+    description:
+      "Suggest new transactions to add." +
+      SUGGEST +
+      " Returns problems to fix and maybe_already_saved: rows already in the account with the same amount within 3 days. Tell the person about those.",
+    schema: z.object({
+      transactions: z
+        .array(
+          z.object({
+            account_id: z.string().describe("Account id from list_accounts"),
+            direction: z.enum(["in", "out"]).describe("out = money spent, paid or withdrawn (a debit); in = money received (a credit)"),
+            amount: amountText,
+            date: day,
+            description: z.string().max(140).describe("Short payee or merchant name, the way the person would write it"),
+            category_id: z.string().optional().describe("Category id from list_categories that fits; leave out if unsure"),
+            note: z.string().max(500).optional(),
+          }),
+        )
+        .min(1)
+        .max(40),
+    }),
+  });
+
+  const editTransactions = tool(async (a) => JSON.stringify(await suggestTransactionEdits(userId, changes, a.edits)), {
+    name: "suggest_transaction_edits",
+    description: "Suggest changes to existing transactions. Give the id from search_transactions and only the fields that change." + SUGGEST,
+    schema: z.object({
+      edits: z
+        .array(
+          z.object({
+            id: z.string().describe("Transaction id from search_transactions"),
+            account_id: z.string().optional(),
+            direction: z.enum(["in", "out"]).optional(),
+            amount: amountText.optional(),
+            date: day.optional(),
+            description: z.string().max(140).optional(),
+            category_id: z.string().optional().describe("Category id, or 'none' to clear it"),
+            note: z.string().max(500).optional(),
+          }),
+        )
+        .min(1)
+        .max(40),
+    }),
+  });
+
+  const deleteTransactions = tool(async (a) => JSON.stringify(await suggestTransactionDeletes(userId, changes, a.ids)), {
+    name: "suggest_transaction_deletes",
+    description: "Suggest deleting transactions, by id from search_transactions. Deleting one side of a transfer deletes both." + SUGGEST,
+    schema: z.object({ ids: z.array(z.string()).min(1).max(40) }),
+  });
+
+  const saveAccount = tool(async (a) => JSON.stringify(await suggestAccount(userId, changes, a)), {
+    name: "suggest_account",
+    description:
+      "Suggest a new account (leave out id), or a change to one (give its id from list_accounts and only what changes). " +
+      "For a credit card or loan, opening_balance is what was owed at the start, as a positive number." +
+      SUGGEST,
+    schema: z.object({
+      id: z.string().optional(),
+      name: z.string().max(60).optional(),
+      kind: accountKind.optional(),
+      opening_balance: z.string().max(20).optional().describe("Balance before its first transaction; may start with - for an overdraft"),
+    }),
+  });
+
+  const deleteAccount = tool(async (a) => JSON.stringify(await suggestAccountDelete(userId, changes, a.id)), {
+    name: "suggest_account_delete",
+    description: "Suggest deleting an account, by id from list_accounts. This deletes all its transactions too; mention that archiving on the Accounts page keeps them." + SUGGEST,
+    schema: z.object({ id: z.string() }),
+  });
+
+  return [addTransactions, editTransactions, deleteTransactions, saveAccount, deleteAccount];
 }
 
 const MAKE_FILES = `Run a Python 3.13 script in this chat's sandbox to make charts, reports and small interactive widgets the person can see and download.
